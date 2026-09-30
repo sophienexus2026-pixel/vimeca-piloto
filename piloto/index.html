@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2F9E5B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vimeca Piloto">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Partes de Trabajo Vimeca</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="css/app.css">
+<script>
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+<!-- Cliente de Supabase (CDN, versión fija: la misma URL está precargada en sw.js) -->
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
+<script defer src="config.js"></script>
+<script defer src="js/fechas.js"></script>
+<script defer src="js/almacen.js"></script>
+<script defer src="js/api.js"></script>
+<script defer src="js/sincronizacion.js"></script>
+<script defer src="js/informe.js"></script>
+<script defer src="js/tecnico.js"></script>
+<script defer src="js/panel.js"></script>
+<script defer src="js/app.js"></script>
+</head>
+<body>
+
+<!-- ============ ACCESO: ENTRAR / CREAR CUENTA ============ -->
+<section id="vAcceso" class="pantalla-acceso" hidden>
+  <img src="assets/logo.jpg" alt="Instalaciones Vimeca">
+  <h1>Partes de Trabajo</h1>
+  <p>Entra con tu email y tu contraseña. Si es la primera vez, crea tu cuenta.</p>
+  <div class="pestanas" role="tablist">
+    <button type="button" id="pestEntrar" class="activa" role="tab">Entrar</button>
+    <button type="button" id="pestCrear" role="tab">Crear cuenta</button>
+  </div>
+  <form id="formAcceso" novalidate>
+    <div id="camposNombre" hidden>
+      <div class="campo">
+        <label for="regNombre">NOMBRE</label>
+        <input id="regNombre" type="text" autocomplete="given-name" placeholder="Ej.: Jorge">
+      </div>
+      <div class="campo">
+        <label for="regApellidos">APELLIDOS</label>
+        <input id="regApellidos" type="text" autocomplete="family-name" placeholder="Ej.: Moral García">
+      </div>
+    </div>
+    <div class="campo">
+      <label for="accEmail">EMAIL</label>
+      <input id="accEmail" type="email" autocomplete="email" inputmode="email" placeholder="Ej.: jorge@correo.com">
+    </div>
+    <div class="campo">
+      <label for="accClave">CONTRASEÑA</label>
+      <input id="accClave" type="password" autocomplete="current-password" placeholder="Mínimo 6 caracteres">
+    </div>
+    <span class="error" id="accError" role="alert" hidden></span>
+    <button class="b-verde" id="btnAcceso" type="submit">Entrar</button>
+  </form>
+  <p class="nota" id="accNota"></p>
+  <p class="firma-dev">© 2026 SophieNexus · Todos los derechos reservados</p>
+</section>
+
+<!-- ============ CUENTA PENDIENTE DE APROBACIÓN ============ -->
+<section id="vPendiente" class="pantalla-acceso" hidden>
+  <img src="assets/logo.jpg" alt="Instalaciones Vimeca">
+  <h1>Tu cuenta está pendiente de aprobación</h1>
+  <p>El encargado tiene que aprobar tu cuenta antes de que puedas rellenar y enviar partes. Cuando lo haga, pulsa «Comprobar de nuevo».</p>
+  <button class="b-verde" id="btnComprobar" type="button">Comprobar de nuevo</button>
+  <button class="b-gris btn-salir" type="button">Cerrar sesión</button>
+  <p class="firma-dev">© 2026 SophieNexus · Todos los derechos reservados</p>
+</section>
+
+<!-- ============ CUENTA DESACTIVADA ============ -->
+<section id="vDesactivada" class="pantalla-acceso" hidden>
+  <img src="assets/logo.jpg" alt="Instalaciones Vimeca">
+  <h1>Tu cuenta está desactivada</h1>
+  <p>No puedes rellenar ni enviar partes. Si crees que es un error, habla con el encargado.</p>
+  <button class="b-gris btn-salir" type="button">Cerrar sesión</button>
+  <p class="firma-dev">© 2026 SophieNexus · Todos los derechos reservados</p>
+</section>
+
+<!-- ============ PANEL DEL ENCARGADO (sustituye a panel.html) ============ -->
+<div id="vPanel" class="panel" hidden>
+  <header class="cab">
+    <div class="cab-fila">
+      <img src="assets/logo.jpg" alt="Instalaciones Vimeca">
+      <div>
+        <b class="emp-nombre">INSTALACIONES VIMECA, S.L.U</b>
+        <span class="emp-datos">NIF: B-67614305 · C/ Ecuador nº16, Collado Mediano, C.P. 28450, Madrid</span>
+      </div>
+      <span class="rol">PANEL DEL ENCARGADO</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="acciones">
+      <select class="b" id="selSemana" aria-label="Semana"></select>
+      <button class="b b-carbon" id="btnPDFSemana" type="button">Exportar PDF de la semana</button>
+      <button class="b b-gris" id="btnExportarTodo" type="button">Exportar todos los datos</button>
+      <button class="b b-gris" id="btnActualizar" type="button">Actualizar</button>
+      <span class="cargando" id="panelCargando" hidden>Cargando…</span>
+      <button class="b b-gris btn-salir" type="button">Cerrar sesión</button>
+    </div>
+
+    <div id="panelSinConexion" class="aviso-hist" hidden>
+      <span id="panelSinConexionTexto"></span>
+      <button id="btnReintentarPanel" type="button">Reintentar</button>
+    </div>
+
+    <div class="tarjeta">
+      <h2>Resumen de horas — <span id="tituloSemana"></span></h2>
+      <p class="resumen-envios" id="resumenEnvios"></p>
+      <div class="tabla-scroll"><table class="t" id="tablaResumen"></table></div>
+      <p class="leyenda">Pulsa el nombre de un técnico para ver sus trabajos de cada día.<br>
+        <span class="muestra c-trab"><b>8</b> <span class="x">+2</span></span> 8 h normales y 2 h extra ·
+        <span class="muestra c-tipo">VAC</span> Vacaciones · <span class="muestra c-tipo">BAJA</span> Baja ·
+        <span class="muestra c-tipo">FEST</span> Festivo · <span class="muestra c-tipo">S/T</span> Sin trabajo ·
+        <span class="muestra c-vacia">—</span> Sin rellenar</p>
+    </div>
+
+    <div class="tarjeta cuentas">
+      <h2>Cuentas</h2>
+      <div id="zonaCuentas"></div>
+    </div>
+    <p class="firma-dev">© 2026 SophieNexus · Todos los derechos reservados</p>
+  </main>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="vApp" hidden>
+  <header class="cab">
+    <div class="cab-fila">
+      <img src="assets/logo.jpg" alt="Instalaciones Vimeca">
+      <div class="cab-datos">
+        <b class="emp-nombre">INSTALACIONES VIMECA, S.L.U</b>
+        <span class="emp-datos">NIF: B-67614305 · C/ Ecuador nº16, Collado Mediano, C.P. 28450, Madrid</span>
+        <span class="emp-contacto">Víctor Méndez · Tel.: +34 664 153 720</span>
+      </div>
+    </div>
+    <div class="cab-sub">
+      <span class="oper"><i></i><span id="cabOperario"></span></span>
+      <span class="sem-sel">
+        <button class="sem-nav" id="btnSemAnt" type="button" aria-label="Semana anterior">‹</button>
+        <span class="fecha" id="cabFecha"></span>
+        <button class="sem-nav" id="btnSemSig" type="button" aria-label="Semana siguiente">›</button>
+      </span>
+    </div>
+  </header>
+
+  <main>
+    <div id="avisoCola" class="aviso-cola" hidden>
+      <span id="avisoColaTexto"></span>
+      <button id="btnReintentar" type="button">Reintentar</button>
+    </div>
+    <div id="avisoHist" class="aviso-hist" hidden>
+      <span id="avisoHistTexto"></span>
+      <button id="btnVolverActual">Ir a la semana actual</button>
+    </div>
+    <div id="estadoSemana" class="estado-sem"><i></i><span id="estadoSemanaTexto"></span></div>
+    <div id="zonaSemana"></div>
+    <div class="total-sem">
+      <div>
+        <small>TOTAL SEMANA</small>
+        <b id="totSemana">0 h</b>
+      </div>
+      <div class="desg" id="totDesglose"></div>
+    </div>
+    <p class="firma-dev">© 2026 SophieNexus · Todos los derechos reservados</p>
+  </main>
+
+  <nav class="barra">
+    <button id="btnExtras" class="b-magenta" style="background:var(--magenta);color:#fff">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg>
+      Horas extras
+    </button>
+    <button id="btnEnviar" class="principal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      Enviar
+    </button>
+    <button id="btnHistorico">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#3B3540" stroke-width="2" stroke-linecap="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+      Histórico
+    </button>
+    <button id="btnPerfil">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#3B3540" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>
+      Perfil
+    </button>
+  </nav>
+</div>
+
+<!-- ============ HISTÓRICO ============ -->
+<div id="vHistorico" hidden>
+  <header class="cab">
+    <div class="cab-fila">
+      <img src="assets/logo.jpg" alt="Instalaciones Vimeca">
+      <div class="cab-datos"><b>HISTÓRICO DE SEMANAS</b><span>Puedes rellenar, enviar y corregir las semanas de los últimos 4 meses</span></div>
+    </div>
+  </header>
+  <main>
+    <button class="volver" id="btnHistVolver">← Volver</button>
+    <div id="listaHist"></div>
+    <p class="firma-dev">© 2026 SophieNexus · Todos los derechos reservados</p>
+  </main>
+</div>
+
+<!-- ============ DIÁLOGOS ============ -->
+<dialog id="dlgObra">
+  <form method="dialog" class="dlg">
+    <h3 id="dlgObraTitulo">Añadir trabajo</h3>
+    <p class="sub" id="dlgObraSub"></p>
+    <div class="campo">
+      <label for="inObra">OBRA / LUGAR</label>
+      <input id="inObra" type="text" placeholder="Ej.: Moral, Cadlán…" list="obrasPrevias">
+      <datalist id="obrasPrevias"></datalist>
+    </div>
+    <div class="campo">
+      <label for="inHoras">HORAS REALIZADAS</label>
+      <input id="inHoras" type="number" inputmode="decimal" min="0" max="24" step="0.5" placeholder="Ej.: 8">
+    </div>
+    <div class="dlg-botones">
+      <button value="cancel" class="b-gris" type="submit" formnovalidate>Cancelar</button>
+      <button id="dlgObraOk" class="b-verde" type="button">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgExtras">
+  <form method="dialog" class="dlg">
+    <h3>Horas extras</h3>
+    <p class="sub" id="extrasResumen"></p>
+    <div class="campo">
+      <label for="inExtraDia">DÍA</label>
+      <select id="inExtraDia"></select>
+    </div>
+    <div class="campo">
+      <label for="inExtraHoras">HORAS EXTRAS A AÑADIR</label>
+      <input id="inExtraHoras" type="number" inputmode="decimal" min="0.5" max="24" step="0.5" placeholder="Ej.: 2">
+    </div>
+    <div class="dlg-botones">
+      <button value="cancel" class="b-gris" type="submit" formnovalidate>Cancelar</button>
+      <button id="dlgExtrasOk" class="b-magenta" type="button">Añadir</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgPerfil">
+  <form method="dialog" class="dlg">
+    <h3 id="perfilNombre"></h3>
+    <p class="sub" id="perfilDesde"></p>
+    <div class="dlg-botones" style="flex-direction:column">
+      <button value="cancel" class="b-gris" type="submit" formnovalidate>Cerrar</button>
+      <button id="btnCerrarSesion" class="b-rojo" type="button">Cerrar sesión</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgConfirmar">
+  <form method="dialog" class="dlg">
+    <h3 id="confTitulo">¿Seguro?</h3>
+    <p class="sub" id="confTexto"></p>
+    <div class="dlg-botones">
+      <button value="cancel" class="b-gris" type="submit" formnovalidate id="confCancelar">Cancelar</button>
+      <button id="confOk" class="b-rojo" type="button">Sí, eliminar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgEnviar">
+  <form method="dialog" class="dlg">
+    <h3>Enviar parte semanal</h3>
+    <p class="sub" id="envSub"></p>
+    <div class="dlg-botones" style="flex-direction:column">
+      <button id="btnEnviarSemana" class="b-verde" type="button">📤 Enviar semana</button>
+      <button id="btnDescargarPDF" class="b-verde" type="button" style="background:var(--teal)">📄 Descargar / Imprimir PDF</button>
+      <button value="cancel" class="b-gris" type="submit" formnovalidate>Cancelar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgInfo">
+  <form method="dialog" class="dlg">
+    <h3 id="infoTitulo"></h3>
+    <p class="texto" id="infoTexto"></p>
+    <div class="dlg-botones">
+      <button value="ok" class="b-verde" type="submit">Entendido</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="aviso" id="aviso" role="status" aria-live="polite"></div>
+
+<!-- ============ INFORME PDF ============ -->
+<div id="informe"></div>
+
+</body>
+</html>
