@@ -3,7 +3,7 @@
    La app arranca sin conexión: la sesión y el perfil se guardan en el móvil al entrar y
    se usan para decidir qué pantalla mostrar. Con conexión se refrescan en segundo plano. */
 
-const VISTAS = ['vAcceso','vPendiente','vDesactivada','vPanel','vApp','vHistorico'];
+const VISTAS = ['vAcceso','vConsentimiento','vPendiente','vDesactivada','vPanel','vApp','vHistorico'];
 function mostrarVista(id){ for(const v of VISTAS) $(v).hidden = v!==id; }
 
 /* Datos de empresa de config.js en la cabecera. */
@@ -11,6 +11,7 @@ function pintarEmpresa(){
   if(CONFIG.entorno==='piloto' && !document.querySelector('.banda-piloto')){
     document.body.insertAdjacentHTML('afterbegin','<div class="banda-piloto">VERSIÓN PILOTO · solo para pruebas</div>');
     document.title='PILOTO · '+document.title;
+    document.body.classList.add('con-banda');
   }
   const e=CONFIG.empresa;
   document.querySelectorAll('.emp-nombre').forEach(n=>n.textContent=e.nombre);
@@ -18,10 +19,13 @@ function pintarEmpresa(){
   document.querySelectorAll('.emp-contacto').forEach(n=>n.textContent=e.contacto+' · Tel.: '+e.telefono);
 }
 
-/* Decide la pantalla según el perfil guardado. */
+/* Decide la pantalla según el perfil guardado. La privacidad se acepta antes que nada más
+   (también con la cuenta pendiente de aprobación). */
 function enrutar(){
   if(!perfil){ mostrarAcceso(); return; }
+  pintarCabeceraUsuario();
   if(!perfil.active) mostrarVista('vDesactivada');
+  else if(necesitaConsentimiento()) mostrarConsentimiento();
   else if(!perfil.approved) mostrarVista('vPendiente');
   else if(perfil.role==='encargado') mostrarPanel();
   else mostrarApp();
@@ -44,6 +48,8 @@ function ponerPestana(p){
   $('pestEntrar').classList.toggle('activa', p==='entrar');
   $('pestCrear').classList.toggle('activa', p==='crear');
   $('camposNombre').hidden = p!=='crear';
+  $('camposConsentimiento').hidden = p!=='crear';
+  $('regAcepto').checked = false;
   $('btnAcceso').textContent = p==='crear' ? 'Crear mi cuenta' : 'Entrar';
   $('accClave').autocomplete = p==='crear' ? 'new-password' : 'current-password';
   $('accNota').textContent = p==='crear'
@@ -60,11 +66,13 @@ $('formAcceso').addEventListener('submit', async ev=>{
   const nombre=$('regNombre').value.trim(), apellidos=$('regApellidos').value.trim();
   if(pestana==='crear' && (!nombre || !apellidos)){ mostrarErrorAcceso('Escribe tu nombre y tus apellidos.'); return; }
   if(!email || !clave){ mostrarErrorAcceso('Escribe tu email y tu contraseña.'); return; }
+  if(pestana==='crear' && !$('regAcepto').checked){ mostrarErrorAcceso('Para crear la cuenta tienes que aceptar la política de privacidad.'); return; }
   if(!apiDisponible()){ mostrarErrorAcceso(apiConfigurada() ? 'Sin conexión. Para entrar o crear la cuenta hace falta cobertura.' : 'La app todavía no está conectada a la base de datos.'); return; }
   const btn=$('btnAcceso'); btn.disabled=true; mostrarErrorAcceso('');
   try{
     const ses = pestana==='crear' ? await registrar(nombre, apellidos, email, clave) : await entrar(email, clave);
     abrirAlmacen(ses.uid);
+    if(pestana==='crear'){ try{ await registrarAceptacion(); }catch(e){ /* se volverá a pedir */ } }
     try{ guardarPerfil(await leerPerfil()); }
     catch(e){ if(!perfil) throw e; }        // sin perfil guardado no se puede seguir
     guardar(K.sesion, ses);
@@ -115,8 +123,10 @@ async function refrescarDesdeServidor(){
   refrescando=true;
   try{
     const antes=JSON.stringify(perfil);
+    await enviarAceptacionPendiente();
     guardarPerfil(await leerPerfil());
     if(JSON.stringify(perfil)!==antes) enrutar();
+    sincronizarFotoPropia();
     if(perfil.role==='tecnico' && perfil.approved && perfil.active){
       if(fusionarServidor(await leerMisPartes(claveMasAntigua())) && !$('vApp').hidden) pintarSemana();
       await procesarCola();

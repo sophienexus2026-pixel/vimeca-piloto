@@ -7,14 +7,15 @@
    dominio y, por tanto, Cache Storage: así ninguno borra ni sirve los ficheros del otro. */
 importScripts('./config.js');
 
-const VERSION_CACHE='pv2-app-1';
+const VERSION_CACHE='pv2-app-2';   // v2.1.0: subir este número en cada versión para que los móviles se actualicen
 const AMBITO=self.registration.scope;
 const CACHE=VERSION_CACHE+'@'+AMBITO;
 const SUPABASE_JS='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js';
 const FICHEROS=[
   './','./index.html','./config.js','./css/app.css',
   './js/fechas.js','./js/almacen.js','./js/api.js','./js/sincronizacion.js',
-  './js/informe.js','./js/tecnico.js','./js/panel.js','./js/app.js',
+  './js/informe.js','./js/tecnico.js','./js/perfil.js','./js/panel.js','./js/app.js',
+  './legal/privacy-terms.md',
   './manifest.webmanifest','./icon-192.png','./icon-512.png','./assets/logo.jpg'
 ];
 const ORIGEN_SUPABASE=(()=>{ try{ return new URL(CONFIG.supabaseUrl).origin; }catch(e){ return null; } })();

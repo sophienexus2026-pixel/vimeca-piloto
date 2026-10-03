@@ -19,41 +19,58 @@ html{font-size:16px}
 body{
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   background:var(--fondo);color:var(--ink);
-  min-height:100vh;padding-bottom:96px;
+  min-height:100vh;
 }
+#vApp{padding-bottom:calc(96px + env(safe-area-inset-bottom))}   /* sitio para la barra inferior */
 button{font:inherit;cursor:pointer;border:none;background:none}
 input,select{font:inherit}
 
-/* ---------- Cabecera de empresa ---------- */
+/* ---------- Cabecera (v2.1: compacta, pensada para móvil) ----------
+   Logo (40 px de alto como mucho) + «Instalaciones Vimeca» en una línea. NIF, dirección y teléfono
+   están en el perfil, en «Datos de la empresa». */
 .cab{
   background:var(--papel);
   border-bottom:3px solid var(--verde);
-  padding:14px 16px 12px;
-  position:sticky;top:0;z-index:20;
+  padding:10px 16px;
   box-shadow:var(--sombra);
 }
-.cab-fila{display:flex;align-items:center;gap:12px}
-.cab img{height:44px;width:auto;flex:none}
-.cab-datos{min-width:0}
-.cab-datos b{display:block;font-size:.82rem;letter-spacing:.04em;color:var(--carbon)}
-.cab-datos span{display:block;font-size:.68rem;color:var(--gris);line-height:1.35}
-.cab-sub{
-  margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;
+.cab-fila{display:flex;align-items:center;gap:10px;min-width:0}
+.cab-logo{height:40px;width:auto;max-width:120px;object-fit:contain;flex:none}
+.cab-marca{flex:1;min-width:0}
+.cab-marca b,.cab-marca span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cab-marca b{font-size:.95rem;color:var(--carbon);letter-spacing:.01em}
+.cab-marca span{font-size:.72rem;color:var(--gris)}
+
+/* Técnico: avatar + nombre completo, grande y en negrita. El nombre nunca se corta. */
+.cab-usuario{
+  display:flex;align-items:center;gap:10px;width:100%;margin-top:10px;padding:8px 10px;
+  border-radius:12px;background:var(--fondo);text-align:left;min-height:56px;
 }
-.cab-sub .fecha{
-  font-size:.78rem;font-weight:700;color:var(--verde-osc);
-  background:#E7F4EC;border:1px solid #C4E4D0;border-radius:999px;padding:4px 12px;
+.cab-nombre{flex:1;min-width:0;font-weight:800;font-size:1.0625rem;color:var(--ink);line-height:1.25;overflow-wrap:anywhere}
+.cab-flecha{width:18px;height:18px;color:var(--gris);flex:none}
+.cab-avatar{margin-left:auto;flex:none;border-radius:50%;padding:2px}
+
+/* Avatar: foto, iniciales o icono de persona. */
+.avatar{
+  width:40px;height:40px;border-radius:50%;flex:none;overflow:hidden;
+  background:var(--carbon);color:#fff;font-weight:800;font-size:.9rem;letter-spacing:.02em;
+  display:inline-flex;align-items:center;justify-content:center;
 }
-.cab-sub .oper{
-  font-size:.78rem;color:var(--carbon);font-weight:600;
-  display:flex;align-items:center;gap:6px;min-width:0;
+.avatar.con-foto{background:var(--linea)}
+.avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.avatar svg{width:58%;height:58%}
+.avatar.grande{width:88px;height:88px;font-size:1.7rem;display:flex;margin:0 auto 10px}
+
+/* Selector de semana: fijo arriba al hacer scroll. */
+.barra-semana{
+  position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px;
+  background:rgba(241,242,240,.96);padding:8px 14px;border-bottom:1px solid var(--linea);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
 }
-.cab-sub .oper i{
-  width:8px;height:8px;border-radius:50%;background:var(--magenta);flex:none;display:inline-block;
+.barra-semana .fecha{
+  flex:1;min-width:0;text-align:center;font-size:.85rem;font-weight:700;color:var(--verde-osc);
+  background:#E7F4EC;border:1px solid #C4E4D0;border-radius:999px;padding:7px 10px;
 }
-.cab-sub .oper span{overflow:hidden;white-space:nowrap}
-/* v2: el nombre nunca se corta. Si no cabe ni el nombre de pila, pasa a dos líneas. */
-.cab-sub .oper span.envolver{white-space:normal;overflow:visible;line-height:1.25}
 
 /* ---------- Contenido ---------- */
 main{padding:14px 14px 0;max-width:560px;margin:0 auto}
@@ -121,7 +138,7 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   max-width:560px;margin:0 auto;
 }
 .barra button{
-  flex:1;padding:11px 6px;border-radius:12px;font-weight:700;font-size:.78rem;
+  flex:1;min-width:0;padding:10px 4px;border-radius:12px;font-weight:700;font-size:.76rem;line-height:1.15;text-align:center;
   display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--carbon);
 }
 .barra button svg{width:20px;height:20px}
@@ -158,9 +175,22 @@ dialog::backdrop{background:rgba(38,34,43,.45)}
   margin:6px 0 14px;
 }
 /* ---------- Pantallas de acceso (entrar, crear cuenta, pendiente) ---------- */
-.pantalla-acceso{padding:28px 22px;max-width:420px;margin:0 auto;text-align:center}
-.pantalla-acceso img{width:200px;margin:18px auto 6px}
-.pantalla-acceso h1{font-size:1.15rem;color:var(--carbon);margin-bottom:4px}
+/* v2.1: centradas en vertical. El logo (JPG con fondo blanco) va sobre una tarjeta blanca para que
+   su fondo no choque con el gris de la pantalla. */
+.pantalla-acceso{
+  min-height:100vh;min-height:100dvh;padding:24px 16px 8px;text-align:center;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.con-banda .pantalla-acceso{min-height:calc(100vh - 26px);min-height:calc(100dvh - 26px)}
+.acceso-caja{width:100%;max-width:400px;margin:auto 0}
+.acceso-caja.ancha{max-width:560px}
+.pantalla-acceso .firma-dev{margin-top:18px}
+.logo-tarjeta{
+  display:inline-block;background:#fff;border-radius:20px;box-shadow:var(--sombra);
+  padding:14px 22px;margin-bottom:18px;
+}
+.logo-tarjeta img{display:block;width:180px;max-width:100%;height:auto}
+.pantalla-acceso h1{font-size:1.2rem;color:var(--carbon);margin-bottom:6px}
 .pantalla-acceso p{font-size:.82rem;color:var(--gris);margin-bottom:22px}
 .pantalla-acceso .campo{text-align:left}
 .pantalla-acceso .b-verde{width:100%;padding:14px;border-radius:12px;font-size:.95rem;margin-top:8px}
@@ -214,31 +244,54 @@ table.inf-t tr.tot td{font-weight:800;background:#EAF6EE}
 .pestanas{display:flex;gap:6px;background:var(--fondo);border-radius:12px;padding:4px;margin-bottom:18px}
 .pestanas button{flex:1;padding:10px;border-radius:9px;font-weight:700;font-size:.85rem;color:var(--gris)}
 .pestanas button.activa{background:var(--papel);color:var(--carbon);box-shadow:var(--sombra)}
-.pantalla-acceso .error{
+.error{
   display:block;background:#FBEAE8;color:var(--rojo);border-radius:10px;padding:10px 12px;
   font-size:.8rem;text-align:left;margin:4px 0 10px;
 }
 .pantalla-acceso .b-gris{width:100%;padding:13px;border-radius:12px;font-size:.9rem;margin-top:10px;font-weight:700;background:var(--papel);border:1.5px solid var(--linea)}
 .pantalla-acceso .nota{font-size:.78rem;color:var(--gris);margin-top:14px;margin-bottom:0}
 
-/* ---------- Selector de semana en la cabecera ---------- */
-.sem-sel{display:flex;align-items:center;gap:4px;flex:none}
+/* ---------- Botones de semana anterior / siguiente ---------- */
 .sem-nav{
-  width:26px;height:26px;border-radius:50%;color:var(--verde-osc);font-size:1.05rem;font-weight:800;
+  width:40px;height:40px;border-radius:50%;color:var(--verde-osc);font-size:1.3rem;font-weight:800;flex:none;
   display:flex;align-items:center;justify-content:center;background:#E7F4EC;border:1px solid #C4E4D0;
 }
 .sem-nav:disabled{opacity:.3;cursor:default}
 
-/* ---------- Estado de envío de la semana ---------- */
+/* ---------- Estado de envío de la semana (v2.1) ----------
+   Banda a todo lo ancho: icono + texto + detalle. Nunca solo color. */
 .estado-sem{
-  display:flex;align-items:center;gap:8px;font-size:.78rem;color:var(--carbon);
-  background:var(--papel);border-radius:var(--radio);box-shadow:var(--sombra);padding:9px 14px;margin-bottom:10px;
+  display:flex;align-items:center;flex-wrap:wrap;gap:10px 12px;
+  background:var(--papel);border:1.5px solid var(--linea);border-radius:var(--radio);
+  padding:12px 14px;margin-bottom:12px;color:var(--carbon);
 }
-.estado-sem i{width:9px;height:9px;border-radius:50%;flex:none;background:var(--gris)}
-.estado-sem.enviada i{background:var(--verde)}
-.estado-sem.cambios i,.estado-sem.en_cola i{background:#D9A21B}
-.estado-sem.rechazada{color:var(--rojo)}
-.estado-sem.rechazada i{background:var(--rojo)}
+.estado-icono{
+  width:34px;height:34px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+  background:var(--fondo);color:var(--gris);
+}
+.estado-icono svg{width:19px;height:19px}
+.estado-textos{flex:1;min-width:0}
+.estado-textos b{display:block;font-size:.95rem;line-height:1.25}
+.estado-textos small{display:block;font-size:.76rem;line-height:1.35;color:var(--gris);margin-top:2px}
+.estado-boton{
+  flex:none;min-height:44px;padding:10px 16px;border-radius:10px;font-weight:800;font-size:.88rem;
+  background:var(--carbon);color:#fff;
+}
+.estado-boton:disabled{opacity:.5}
+.estado-sem.cambios,.estado-sem.sin_enviar{background:#FFF6E0;border-color:#E3C677}
+.estado-sem.cambios .estado-icono,.estado-sem.sin_enviar .estado-icono{background:#F2BE3D;color:#4A3800}
+.estado-sem.cambios b,.estado-sem.sin_enviar b{color:#5C4500}
+.estado-sem.cambios small,.estado-sem.sin_enviar small{color:#7A5E12}
+.estado-sem.en_cola{background:#FFF6E0;border-color:#EBD9A0}
+.estado-sem.en_cola .estado-icono{background:#fff;color:#9A7310}
+.estado-sem.en_cola small{color:#7A5E12}
+.estado-sem.enviada{background:#E7F4EC;border-color:#B5DCC3}
+.estado-sem.enviada .estado-icono{background:var(--verde);color:#fff}
+.estado-sem.enviada b{color:var(--verde-osc)}
+.estado-sem.rechazada{background:#FBEAE8;border-color:#EDC0BA}
+.estado-sem.rechazada .estado-icono{background:var(--rojo);color:#fff}
+.estado-sem.rechazada b{color:var(--rojo)}
+@media (max-width:420px){ .estado-boton{width:100%} }
 
 /* ---------- Envíos pendientes (mismo aspecto que el aviso de histórico) ---------- */
 .aviso-cola{
@@ -285,26 +338,49 @@ table.inf-t tr.tot td{font-weight:800;background:#EAF6EE}
 /* =====================================================================
    Panel del encargado (estilos de panel.html v1, limitados a .panel)
    ===================================================================== */
-.panel .cab{position:static;border-bottom:3px solid var(--carbon);padding:14px 18px}
-.panel .cab-fila{max-width:1080px;margin:0 auto;gap:10px 14px;flex-wrap:wrap}
-.panel .cab-fila > div{flex:1;min-width:0}
-.panel .cab img{height:46px}
-.panel .cab b{display:block;font-size:.9rem;color:var(--carbon)}
-.panel .cab span{display:block;font-size:.7rem;color:var(--gris)}
-.panel .cab .rol{margin-left:auto;font-size:.72rem;font-weight:800;letter-spacing:.08em;color:#fff;background:var(--carbon);padding:6px 14px;border-radius:999px;flex:none}
-.panel main{max-width:1080px;margin:0 auto;padding:16px}
-.panel .acciones{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+.panel .cab{border-bottom-color:var(--carbon)}
+.panel .cab-fila{max-width:1080px;margin:0 auto}
+.panel main{max-width:1080px;margin:0 auto;padding:14px 16px 0}
+
+/* Semana a todo lo ancho; debajo, el PDF (acción principal) y «⋯ Más acciones». */
+.panel-controles{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.panel .sel-semana{width:100%}
+.panel .acciones{display:flex}
+.panel #btnPDFSemana{flex:1;min-width:0}
+.menu-mas{position:relative;flex:none;display:flex;margin-left:auto}
+.sin-cortar{white-space:nowrap}
+.menu{
+  position:absolute;right:0;top:calc(100% + 6px);z-index:40;min-width:240px;padding:6px;
+  background:var(--papel);border:1px solid var(--linea);border-radius:12px;box-shadow:0 8px 30px rgba(38,34,43,.18);
+  display:flex;flex-direction:column;
+}
+.menu button{text-align:left;padding:12px 14px;border-radius:8px;font-weight:700;font-size:.88rem;color:var(--carbon);min-height:44px}
+.menu button:hover,.menu button:focus-visible{background:var(--fondo)}
+.fila-opciones{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.interruptor{display:inline-flex;align-items:center;gap:8px;font-size:.85rem;font-weight:600;color:var(--carbon);min-height:44px;cursor:pointer}
+.interruptor input{width:20px;height:20px;accent-color:var(--verde)}
+@media (min-width:768px){
+  .panel-controles{display:grid;grid-template-columns:minmax(280px,380px) minmax(0,1fr);align-items:center;gap:10px 12px}
+  .panel #btnPDFSemana{flex:none}
+  .fila-opciones{grid-column:1 / -1}
+}
 .panel .b{padding:11px 18px;border-radius:12px;font-weight:700;font-size:.85rem;min-height:44px}
 .panel .b-verde{background:var(--verde);color:#fff}
 .panel .b-carbon{background:var(--carbon);color:#fff}
 .panel .b-gris{background:#E4E6E1;color:var(--carbon)}
 .panel select.b{border:1.5px solid var(--linea);background:var(--papel);color:var(--ink);font-weight:600}
-.panel .btn-salir{margin-left:auto}
 .panel .cargando{font-size:.8rem;color:var(--gris)}
 .panel .tarjeta{background:var(--papel);border-radius:var(--radio);box-shadow:var(--sombra);padding:16px;margin-bottom:16px}
 .panel .tarjeta h2{font-size:.8rem;letter-spacing:.06em;color:var(--gris);margin-bottom:6px;text-transform:uppercase}
 .panel .resumen-envios{font-size:.8rem;color:var(--carbon);margin-bottom:12px}
-.panel .tabla-scroll{overflow-x:auto}
+.panel .tabla-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+/* Tabla solo desde 768 px; por debajo, tarjetas. */
+@media (max-width:767.98px){ .panel .tabla-scroll{display:none} }
+@media (min-width:768px){ .panel .lista-tec{display:none} }
+/* Primera columna (técnico) fija al desplazar la tabla en horizontal. */
+.panel table.t th.op,.panel table.t td.op{position:sticky;left:0;z-index:1;background:var(--papel);box-shadow:inset -1px 0 0 var(--linea);text-align:left}
+.panel table.t th.op{background:#F5F6F3}
+.panel table.t tr.tot td.op{background:#EAF6EE}
 .panel table.t{width:100%;border-collapse:collapse;font-size:.82rem;min-width:900px}
 .panel table.t th,.panel table.t td{border:1px solid var(--linea);padding:8px 6px;text-align:center;vertical-align:middle}
 .panel table.t th{background:#F5F6F3;font-size:.68rem;letter-spacing:.03em;color:var(--carbon)}
@@ -336,6 +412,11 @@ table.inf-t tr.tot td{font-weight:800;background:#EAF6EE}
 .panel .parte-item{display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px dashed var(--linea);font-size:.82rem;flex-wrap:wrap}
 .panel .parte-item:last-child{border-bottom:none}
 .panel .parte-item .n{font-weight:700;color:var(--carbon)}
+.panel .parte-item .avatar{width:36px;height:36px;font-size:.78rem}
+.panel .parte-item .cuenta-datos{
+  margin-left:0;flex:1;min-width:0;padding:4px 0;min-height:44px;border-radius:0;font-weight:400;font-size:.82rem;
+  display:flex;flex-direction:column;justify-content:center;text-align:left;overflow-wrap:anywhere;
+}
 .panel .parte-item small{color:var(--gris)}
 .panel .parte-item button{margin-left:auto;font-weight:700;font-size:.8rem;padding:10px 16px;border-radius:10px;min-height:44px}
 .panel .parte-item .b-quitar{color:var(--rojo);background:#FBEAE8}
@@ -354,3 +435,104 @@ table.inf-t td.c-vacia{color:#777;background:repeating-linear-gradient(45deg,#ff
 .banda-piloto{background:#FFF6E0;color:#7A5E12;border-bottom:1px solid #EBD9A0;text-align:center;
   font-size:.7rem;font-weight:800;letter-spacing:.08em;padding:4px 8px}
 @media print{ .banda-piloto{display:none !important} }
+
+/* =====================================================================
+   v2.1 — panel en móvil: una tarjeta por técnico
+   ===================================================================== */
+.lista-tec{display:flex;flex-direction:column;gap:10px}
+.tec-tarjeta{background:var(--papel);border:1px solid var(--linea);border-radius:12px;overflow:hidden}
+.tec-tarjeta.inactivo{background:#FAFAF8;border-style:dashed}
+.tec-cab{display:flex;align-items:flex-start;gap:10px;width:100%;padding:12px;text-align:left}
+.tec-nombre{flex:1;min-width:0}
+.tec-nombre b{display:block;font-size:.98rem;color:var(--carbon);line-height:1.25;overflow-wrap:anywhere;margin-bottom:5px}
+.tec-nombre small{display:block;font-size:.68rem;color:var(--gris);margin-top:3px}
+.panel .tec-nombre small.inactivo{padding-left:0;margin:-2px 0 5px;color:var(--rojo);font-weight:700}
+.panel .tec-nombre .est{white-space:normal}
+.tec-flecha{width:22px;height:22px;color:var(--gris);flex:none;margin-top:9px;transition:transform .2s}
+.tec-tarjeta.abierta .tec-flecha{transform:rotate(180deg)}
+.tec-totales{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:0 12px 10px}
+.tec-totales span{background:#F5F6F3;border-radius:8px;padding:6px 8px;font-size:.66rem;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.04em}
+.tec-totales b{display:block;font-size:1.02rem;color:var(--verde-osc);text-transform:none;letter-spacing:0}
+.tec-totales b.x{color:var(--magenta)}
+.tec-dias{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;padding:0 12px 12px;cursor:pointer}
+.tec-dia{
+  min-width:0;min-height:54px;border:1px solid var(--linea);border-radius:7px;padding:4px 1px;
+  display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;text-align:center;
+}
+.tec-dia small{font-size:.6rem;color:var(--gris);white-space:nowrap;font-weight:600}
+.tec-dia span{font-size:.82rem;line-height:1.15;overflow-wrap:anywhere}
+.tec-dia .x{display:block;font-size:.74rem}
+.panel .tec-dia.c-tipo{background:#ECEDEA}
+.panel .tec-dia.c-tipo span{font-weight:800;font-size:.64rem;color:var(--carbon);letter-spacing:.03em}
+.panel .tec-dia.c-vacia{background:repeating-linear-gradient(45deg,#fff 0 5px,#F1F2F0 5px 10px);color:var(--gris)}
+.tec-detalle{border-top:1px solid var(--linea);background:#FAFAF8;padding:10px 12px 12px;font-size:.82rem;line-height:1.7;overflow-wrap:anywhere}
+.b-ficha{
+  display:inline-block;margin-top:8px;padding:9px 14px;min-height:40px;border-radius:10px;
+  background:var(--papel);border:1.5px solid var(--linea);color:var(--carbon);font-weight:700;font-size:.8rem;
+}
+.panel tr.detalle .b-ficha{margin-left:0}
+.tec-tarjeta.total{background:#EAF6EE;border-color:#C4E4D0}
+.tec-tarjeta.total .tec-dias{cursor:default}
+.tec-tarjeta.total .tec-totales span,.tec-tarjeta.total .tec-dia{background:#fff}
+.tec-tarjeta.total .tec-dia.c-vacia{background:#fff}
+
+/* =====================================================================
+   v2.1 — hojas (perfil, ficha, privacidad): suben desde abajo en el móvil
+   ===================================================================== */
+dialog.hoja{
+  width:100%;max-width:520px;max-height:92vh;margin:auto auto 0;border-radius:20px 20px 0 0;overflow-y:auto;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+@media (min-width:600px){ dialog.hoja{margin:auto;border-radius:18px} }
+.hoja .dlg{position:relative;padding:22px 18px 16px}
+.cerrar-x{
+  position:absolute;top:10px;right:10px;width:40px;height:40px;border-radius:50%;
+  background:var(--fondo);color:var(--carbon);font-size:1rem;font-weight:700;
+}
+.perfil-cab{text-align:center;margin:6px 0 18px}
+.perfil-cab h3{font-size:1.3rem;color:var(--ink);line-height:1.25;overflow-wrap:anywhere;padding:0 30px}
+.perfil-cab p.sub{margin:4px 0 0;font-size:.85rem;overflow-wrap:anywhere}
+.campo .etiqueta{display:block;font-size:.72rem;font-weight:700;color:var(--carbon);margin-bottom:5px;letter-spacing:.02em}
+.campo label small,.campo .etiqueta small{font-weight:400;color:var(--gris);letter-spacing:0}
+.campo input.mal{border-color:var(--rojo)}
+.ayuda{display:block;font-size:.72rem;color:var(--gris);margin-top:4px}
+.ayuda.mal{color:var(--rojo);font-weight:700}
+.foto-botones{display:flex;gap:8px}
+.campo .foto-botones > *{
+  flex:1;min-height:44px;padding:11px 8px;border-radius:10px;border:1.5px solid var(--linea);
+  font-weight:700;font-size:.85rem;text-align:center;cursor:pointer;background:var(--fondo);color:var(--carbon);
+}
+.perfil-botones{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.perfil-botones button{min-height:48px;padding:12px;border-radius:12px;font-weight:700;font-size:.92rem}
+.perfil-botones button:disabled{opacity:.6}
+details.empresa{margin-top:18px;border-top:1px solid var(--linea);padding-top:10px;font-size:.8rem}
+details.empresa summary{font-weight:700;color:var(--carbon);cursor:pointer;min-height:36px;display:flex;align-items:center}
+details.empresa p{margin-top:6px;color:var(--gris);line-height:1.5}
+details.empresa b{color:var(--carbon)}
+.version-app{text-align:center;font-size:.7rem;color:#A8A4AE;margin-top:14px}
+dl.ficha{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px 14px;font-size:.88rem;margin-bottom:6px}
+dl.ficha dt{font-size:.7rem;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.04em;padding-top:3px}
+dl.ficha dd{color:var(--ink);overflow-wrap:anywhere}
+.gris{color:var(--gris)}
+
+/* ---------- Privacidad y condiciones ---------- */
+.texto-legal{
+  text-align:left;background:var(--papel);border:1px solid var(--linea);border-radius:12px;
+  padding:14px 16px;max-height:52vh;overflow-y:auto;margin-bottom:14px;overflow-wrap:anywhere;
+}
+.texto-legal h2{font-size:1.05rem;color:var(--carbon);margin-bottom:8px}
+.texto-legal h3{font-size:.92rem;color:var(--carbon);margin:16px 0 6px}
+.texto-legal p,.pantalla-acceso .texto-legal p{font-size:.84rem;color:var(--ink);line-height:1.5;margin:0 0 8px}
+.texto-legal ul{padding-left:20px;margin:0 0 8px}
+.texto-legal li{font-size:.84rem;line-height:1.5;margin-bottom:4px}
+.texto-legal blockquote{
+  background:#FFF6E0;border-left:4px solid #D9A21B;border-radius:6px;padding:8px 12px;margin:0 0 12px;
+  font-size:.82rem;color:#5C4500;line-height:1.45;
+}
+.texto-legal .version-terminos,.pantalla-acceso .texto-legal .version-terminos{font-size:.72rem;color:var(--gris);margin-top:12px}
+.hoja .texto-legal{max-height:none;border:none;padding:0;margin-top:8px}
+#consTexto > h2:first-child{display:none}   /* el título ya está encima, en la pantalla */
+.casilla{display:flex;align-items:flex-start;gap:10px;text-align:left;font-size:.86rem;color:var(--carbon);line-height:1.4;margin:4px 0 12px;cursor:pointer}
+.casilla input{width:22px;height:22px;flex:none;margin-top:0;accent-color:var(--verde)}
+.enlace{display:inline;padding:0;color:var(--verde-osc);font-weight:700;text-decoration:underline;font-size:inherit;text-align:left}
+.pantalla-acceso .b-verde:disabled{opacity:.5;cursor:default}

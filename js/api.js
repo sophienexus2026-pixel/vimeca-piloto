@@ -101,6 +101,10 @@ function mensajeRechazo(error){
     case 'cuenta_no_autorizada': return 'Tu cuenta no está aprobada o está desactivada. Habla con el encargado.';
     case 'fecha_fuera_de_la_semana': return 'Hay un día que no pertenece a esta semana.';
     case 'no_puedes_modificar_tu_propia_cuenta': return 'No puedes aprobar ni desactivar tu propia cuenta.';
+    case 'telefono_no_valido': return 'El teléfono no es válido. Escribe un número de España de 9 cifras.';
+    case 'dni_nif_no_valido': return 'El DNI / NIE / NIF no es válido. Revisa los números y la letra.';
+    case 'foto_no_valida': return 'No se ha podido guardar la foto.';
+    case 'version_no_valida': return 'No se ha podido guardar la aceptación de la política de privacidad.';
     default: return 'El servidor no ha aceptado la semana ('+(error.message||'error desconocido')+').';
   }
 }
@@ -129,7 +133,8 @@ const CAMPOS_PARTE = 'id,user_id,semana,estado,version,enviado_at,modificado_at,
 
 async function leerPerfiles(){
   const { data, error, status } = await cliente().from('profiles')
-    .select('id,email,nombre,apellidos,role,approved,active,created_at').order('created_at');
+    .select('id,email,nombre,apellidos,role,approved,active,created_at,telefono,dni_nif,avatar_path,terms_version,terms_accepted_at')
+    .order('created_at');
   if(error) throw errorDatos(error, status);
   return data;
 }
@@ -158,4 +163,54 @@ async function cambiarCuenta(id, cambios){
   if(error) throw errorDatos(error, status);
   if(!data?.length) throw new ErrorApi('rechazo', 'No se ha podido modificar la cuenta (sin permiso).');
   return data[0];
+}
+
+/* ================= v2.1: mi perfil, privacidad y fotos =================
+   La app no escribe en profiles directamente: lo hacen dos funciones de la base de datos
+   (supabase/migrations/2026-10-v2.1.sql) que solo tocan los campos propios permitidos. */
+
+async function guardarMiPerfilApi(telefono, dniNif, rutaFoto){
+  const { data, error, status } = await cliente().rpc('guardar_mi_perfil', { p_telefono: telefono, p_dni_nif: dniNif, p_avatar_path: rutaFoto });
+  if(error) throw errorDatos(error, status);
+  return data;
+}
+
+/* aceptadoAt: momento en que se aceptó (puede ser sin cobertura, antes de mandarlo). */
+async function aceptarTerminosApi(version, aceptadoAt){
+  const { data, error, status } = await cliente().rpc('aceptar_terminos', { p_version: version, p_aceptado_at: aceptadoAt || null });
+  if(error) throw errorDatos(error, status);
+  return data;
+}
+
+/* Fotos en el almacén PRIVADO "avatars": <uid>/avatar.jpg. Se ven con enlaces firmados de 1 hora. */
+const ALMACEN_FOTOS = 'avatars';
+const rutaFotoPropia = () => uid + '/avatar.jpg';
+
+function errorFotos(error){
+  if(esErrorDeRed(error)) return new ErrorApi('sin_conexion', 'Sin conexión.');
+  const st = Number(error?.statusCode || error?.status);
+  if(st === 401 || /JWT|token/i.test(error?.message||'')) return new ErrorApi('sesion', 'Tu sesión ha caducado. Vuelve a entrar.');
+  return new ErrorApi('otro', 'No se ha podido guardar la foto ('+(error?.message||st||'error')+').');
+}
+
+async function subirFotoApi(blob){
+  const { error } = await cliente().storage.from(ALMACEN_FOTOS)
+    .upload(rutaFotoPropia(), blob, { upsert:true, contentType:'image/jpeg', cacheControl:'0' });
+  if(error) throw errorFotos(error);
+  return rutaFotoPropia();
+}
+
+async function borrarFotoApi(){
+  const { error } = await cliente().storage.from(ALMACEN_FOTOS).remove([rutaFotoPropia()]);
+  if(error) throw errorFotos(error);
+}
+
+/* { ruta: enlace firmado } para varias fotos de una vez. Las que fallen no aparecen. */
+async function enlacesFotosApi(rutas){
+  if(!rutas.length) return {};
+  const { data, error } = await cliente().storage.from(ALMACEN_FOTOS).createSignedUrls(rutas, 3600);
+  if(error) throw errorFotos(error);
+  const mapa = {};
+  for(const f of data || []) if(f.signedUrl && !f.error) mapa[f.path] = f.signedUrl;
+  return mapa;
 }

@@ -12,6 +12,8 @@
                               revEnviada,             revLocal que el servidor confirmó (null = nunca)
                               servidor: { version, enviadoAt, modificadoAt } } }
    …cola:<uid>          → [ { semana, envioId, datos, revLocal, encoladoAt, intentos, ultimoError, rechazo } ]
+   …foto:<uid>          → { ruta, datos }            mi foto reducida (data URL) para verla sin cobertura
+   …terminos_pendiente:<uid> → { version, aceptadoAt } privacidad aceptada sin cobertura, por mandar
 
    Un día que no está en "dias" es un día sin rellenar (null), que no es lo mismo que "sin_trabajo".
    Los datos locales solo se borran cuando el servidor ha confirmado la semana (ver purgar). */
@@ -32,7 +34,9 @@ const K = {
   perfil: u => PREFIJO+'perfil:'+u,
   semanas: u => PREFIJO+'semanas:'+u,
   cola: u => PREFIJO+'cola:'+u,
-  importadoV1: u => PREFIJO+'importado_v1:'+u
+  importadoV1: u => PREFIJO+'importado_v1:'+u,
+  foto: u => PREFIJO+'foto:'+u,                        // mi foto (data URL), para verla sin cobertura
+  terminos: u => PREFIJO+'terminos_pendiente:'+u       // aceptación hecha sin cobertura, por mandar
 };
 const TIPOS = {
   trabajado:   'Trabajado',

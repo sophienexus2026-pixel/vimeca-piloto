@@ -46,7 +46,7 @@ function mostrarApp(){
 const TEXTO_ESTADO = {
   vacia:      'Semana sin rellenar',
   sin_enviar: 'Sin enviar',
-  cambios:    'Enviada · tienes cambios sin enviar',
+  cambios:    'Tienes cambios sin enviar',
   en_cola:    'En cola: se enviará sola en cuanto haya cobertura',
   rechazada:  'No se ha podido enviar'
 };
@@ -68,7 +68,7 @@ function pintarSemana(){
   const hoyIso = iso(HOY());
 
   $('cabFecha').textContent = 'Semana '+rangoSemana(clave);
-  ajustarNombreCabecera();   // después de la píldora de semana, que ocupa su sitio
+  pintarCabeceraUsuario();
   $('btnSemAnt').disabled = sumarSemanas(clave,-1) < claveMasAntigua();
   $('btnSemSig').disabled = clave >= claveActual();
 
@@ -77,9 +77,7 @@ function pintarSemana(){
     ? 'Estás viendo una semana anterior. Puedes rellenarla y enviarla.'
     : 'Esta semana tiene más de 4 meses: solo lectura.';
 
-  const est=estadoSemana(clave);
-  $('estadoSemana').className='estado-sem '+est;
-  $('estadoSemanaTexto').textContent=textoEstado(clave);
+  pintarEstadoSemana(clave, editable);
   pintarAvisoCola();
 
   const zona=$('zonaSemana'); zona.innerHTML='';
@@ -155,17 +153,42 @@ function pintarSemana(){
   $('totDesglose').innerHTML = 'Normales: '+fmtHoras(t.normales)+'<br>Extras: <i>'+fmtHoras(t.extras)+'</i>';
 }
 
-/* Nombre completo en la cabecera; si no cabe, solo el nombre de pila; si tampoco, en dos líneas.
-   Nunca con puntos suspensivos. */
-function ajustarNombreCabecera(){
-  const el=$('cabOperario');
-  if(!perfil || !el.offsetParent) return;
-  el.classList.remove('envolver');
-  el.textContent=perfil.nombre+' '+perfil.apellidos;
-  if(el.scrollWidth>el.clientWidth) el.textContent=perfil.nombre;
-  if(el.scrollWidth>el.clientWidth) el.classList.add('envolver');
+/* ================= Estado de envío de la semana =================
+   Una banda a todo lo ancho con icono, texto y detalle: el estado nunca depende solo del color.
+   Con cambios sin enviar lleva el botón «Enviar ahora» (mismo envío que la barra inferior). */
+const ICONOS_ESTADO = {
+  ok:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+  alerta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3L2 20h20L12 3z"/><path d="M12 10v4"/><path d="M12 17.5v.01"/></svg>',
+  reloj:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  error:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg>',
+  vacia:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>'
+};
+function pintarEstadoSemana(clave, editable){
+  const est=estadoSemana(clave), sv=semanas[clave]?.servidor;
+  let icono, texto, detalle, boton=false;
+  if(est==='enviada'){
+    icono='ok'; texto='Semana enviada';
+    detalle = sv.modificadoAt ? 'Corregida el '+fmtFechaHora(sv.modificadoAt) : 'El '+fmtFechaHora(sv.enviadoAt);
+  } else if(est==='cambios' || est==='sin_enviar'){
+    icono='alerta'; texto=TEXTO_ESTADO.cambios; boton=editable;
+    detalle = est==='cambios'
+      ? 'La enviaste el '+fmtFechaHora(sv.modificadoAt||sv.enviadoAt)+'. El encargado no verá los cambios hasta que la envíes otra vez.'
+      : 'El encargado todavía no ha recibido esta semana.';
+  } else if(est==='en_cola'){
+    icono='reloj'; texto='Pendiente de cobertura'; detalle='Se enviará sola en cuanto haya conexión.';
+  } else if(est==='rechazada'){
+    icono='error'; texto=TEXTO_ESTADO.rechazada; boton=editable;
+    detalle=cola.find(c=>c.semana===clave).rechazo;
+  } else {
+    icono='vacia'; texto=TEXTO_ESTADO.vacia; detalle='Marca el tipo de cada día o añade obras y horas.';
+  }
+  $('estadoSemana').className='estado-sem '+est;
+  $('estadoSemanaIcono').innerHTML=ICONOS_ESTADO[icono];
+  $('estadoSemanaTexto').textContent=texto;
+  $('estadoSemanaDetalle').textContent=detalle;
+  $('btnEnviarAhora').hidden=!boton;
 }
-window.addEventListener('resize', ajustarNombreCabecera);
+$('btnEnviarAhora').addEventListener('click',()=>enviarSemana(semanaVista || claveActual()));
 
 /* Botones de tipo de día. Pulsar el tipo ya marcado deja el día sin rellenar. */
 function selectorTipo(clave, fIso, dd, nombreDia){
@@ -316,36 +339,27 @@ $('btnDescargarPDF').addEventListener('click',()=>{
   $('dlgEnviar').close();
   imprimirInforme(semanaVista || claveActual());
 });
-$('btnEnviarSemana').addEventListener('click',async ()=>{
+$('btnEnviarSemana').addEventListener('click',()=>{
   $('dlgEnviar').close();
-  const clave=semanaVista || claveActual();
+  enviarSemana(semanaVista || claveActual());
+});
+/* Enviar una semana: desde el diálogo de la barra inferior o desde «Enviar ahora». */
+async function enviarSemana(clave){
   const errores=validarSemana(clave);
   if(errores.length){ informar('Revisa la semana antes de enviarla', errores.join('\n\n')); return; }
   if(estadoSemana(clave)==='enviada'){ avisar('Esta semana ya está enviada y no tiene cambios.'); return; }
-  const btn=$('btnEnviar'); btn.disabled=true;
+  const btns=[$('btnEnviar'), $('btnEnviarAhora')];
+  btns.forEach(b=>b.disabled=true);
   try{
     const r=await encolarEnvio(clave);
     if(r.estado==='enviada') avisar('Semana enviada correctamente.');
     else if(r.estado==='en_cola') informar('Sin conexión','La semana se ha guardado en el móvil y se enviará sola en cuanto haya cobertura. No hace falta que hagas nada más.');
     else if(r.estado==='rechazada') informar('No se ha podido enviar', r.mensaje+'\n\nCorrígelo y vuelve a pulsar Enviar.');
     // r.estado==='sesion': ya se muestra la pantalla de acceso explicando que hay que volver a entrar.
-  } finally { btn.disabled=false; pintarSemana(); }
-});
+  } finally { btns.forEach(b=>b.disabled=false); pintarSemana(); }
+}
 
-/* ================= Perfil ================= */
-$('btnPerfil').addEventListener('click',()=>{
-  $('perfilNombre').textContent=perfil.nombre+' '+perfil.apellidos;
-  $('perfilDesde').textContent=(perfil.email||'')+' · Partes de Trabajo v'+CONFIG.versionApp;
-  $('dlgPerfil').showModal();
-});
-$('btnCerrarSesion').addEventListener('click',()=>{
-  $('dlgPerfil').close();
-  const sinEnviar=Object.keys(semanas).filter(k=>tieneCambiosSinEnviar(semanas[k])).length;
-  const texto = sinEnviar
-    ? 'Tienes '+sinEnviar+' semana'+(sinEnviar>1?'s':'')+' con datos sin enviar. Se quedan guardadas en este móvil y podrás enviarlas cuando vuelvas a entrar con tu cuenta.'
-    : 'Tus semanas enviadas están guardadas en el servidor.';
-  confirmar('Cerrar sesión', texto, cerrarSesion, 'Cerrar sesión');
-});
+/* El perfil (hoja, foto, privacidad, cerrar sesión) está en perfil.js. */
 
 /* ================= Partes de la versión anterior ================= */
 let importacionPreguntada=false;
