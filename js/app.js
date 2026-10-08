@@ -47,6 +47,8 @@ function ponerPestana(p){
   pestana=p;
   $('pestEntrar').classList.toggle('activa', p==='entrar');
   $('pestCrear').classList.toggle('activa', p==='crear');
+  $('pestEntrar').setAttribute('aria-selected', String(p==='entrar'));
+  $('pestCrear').setAttribute('aria-selected', String(p==='crear'));
   $('camposNombre').hidden = p!=='crear';
   $('camposConsentimiento').hidden = p!=='crear';
   $('regAcepto').checked = false;

@@ -10,22 +10,9 @@
 const ETIQUETA_CORTA = { vacaciones:'VAC', baja:'BAJA', festivo:'FEST', sin_trabajo:'S/T' };
 const LEYENDA_CELDAS = '8 +2 = 8 h normales y 2 h extra · VAC Vacaciones · BAJA Baja · FEST Festivo · S/T Sin trabajo · — Sin rellenar';
 const fH = n => (Math.round(n*100)/100).toString().replace('.',',');
-const nombreCompleto = u => u.nombre+' '+u.apellidos;
+/* nombreCompleto() y diasDeParte() están en exportar-excel.js (se cargan antes que este fichero). */
 
 let panel = { semana:null, semanaCargada:null, perfiles:[], partes:[], verDesactivados:false, fotos:{} };
-
-/* Días de un parte del servidor con la misma forma que usa el técnico en el móvil. */
-function diasDeParte(p){
-  const dias = {};
-  for(const d of p?.dias || []){
-    dias[d.fecha] = {
-      tipo: d.tipo,
-      entradas: [...d.entradas].sort((a,b)=>a.orden-b.orden).map(e=>({obra:e.obra, horas:Number(e.horas)})),
-      horasExtra: Number(d.horas_extra) || 0
-    };
-  }
-  return dias;
-}
 
 /* Una fila por técnico aprobado. Los desactivados solo salen en las semanas en que enviaron algo.
    En pantalla, además, solo si está marcado «Mostrar desactivados». El PDF los incluye siempre:
@@ -289,56 +276,45 @@ $('btnPDFSemana').addEventListener('click', () => {
   imprimirInforme(() => construirInformeGlobal(panel.semanaCargada, filasSemana(true)));
 });
 
-/* ================= Exportar todos los datos (CSV) =================
-   Copia de seguridad del registro de jornada: el plan gratuito de Supabase no guarda copias
-   descargables. Una fila por obra y una por cada día no trabajado; cada fila se entiende sola.
-   Las horas extra de un día van en la primera fila de obra de ese día (0 en las demás), para que
-   al sumar la columna en Excel no se cuenten dos veces. */
-const COLUMNAS_CSV = ['técnico','semana','fecha','día de la semana','tipo de día','obra','horas','horas extra','estado','fecha de envío','fecha de modificación','versión'];
-const celdaCsv = v => { const s = String(v ?? ''); return /[;"\n\r]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
-const fechaCsv = fIso => fmtCorta(deIso(fIso)).replace(/-/g,'/');
-const numCsv = n => String(Math.round(n*100)/100).replace('.',',');
-const fechaHoraCsv = ts => ts ? fmtFechaHora(ts).replace(/-/g,'/') : '';
+/* ================= Exportar a Excel (.xlsx) =================
+   La hoja de cálculo se genera en el móvil con js/libro-excel.js (sin CDN) y las hojas con
+   js/exportar-excel.js. La de la semana funciona sin cobertura con los datos ya cargados.
+   «Todos los datos» descarga del servidor todo lo enviado: es la copia de seguridad del
+   registro de jornada (el plan gratuito de Supabase no guarda copias descargables). */
+const TIPO_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-function filasCsv(perfiles, partes){
-  const porId = new Map(perfiles.map(u=>[u.id, u]));
-  const filas = [];
-  const ordenados = [...partes].sort((a,b)=> a.semana<b.semana ? -1 : a.semana>b.semana ? 1
-    : nombreCompleto(porId.get(a.user_id)||{nombre:'',apellidos:''}).localeCompare(nombreCompleto(porId.get(b.user_id)||{nombre:'',apellidos:''}),'es'));
-  for(const p of ordenados){
-    const u = porId.get(p.user_id);
-    const comun = {
-      tecnico: u ? nombreCompleto(u) : p.user_id, semana: fechaCsv(p.semana),
-      estado: p.version>1 ? 'Modificado' : 'Enviado', envio: fechaHoraCsv(p.enviado_at),
-      modif: fechaHoraCsv(p.modificado_at), version: p.version
-    };
-    for(const [fIso, dd] of Object.entries(diasDeParte(p)).sort(([a],[b])=>a<b?-1:1)){
-      const dia = DIAS[(deIso(fIso).getDay()+6)%7];
-      const base = [comun.tecnico, comun.semana, fechaCsv(fIso), dia, TIPOS[dd.tipo]];
-      const cola = [comun.estado, comun.envio, comun.modif, comun.version];
-      if(dd.tipo !== 'trabajado') filas.push([...base, '', '0', '0', ...cola]);
-      else dd.entradas.forEach((e,i) => filas.push([...base, e.obra, numCsv(e.horas), i===0 ? numCsv(dd.horasExtra) : '0', ...cola]));
-    }
-  }
-  return filas;
+function descargarFichero(bytes, nombre, tipo){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([bytes], { type:tipo }));
+  a.download = nombre;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
 }
 
-$('btnExportarTodo').addEventListener('click', async () => {
+async function exportarExcel(boton, generar){
   cerrarMenuMas();
-  const b = $('btnExportarTodo'); b.disabled = true; const texto = b.textContent; b.textContent = 'Preparando…';
+  const texto = boton.textContent; boton.disabled = true; boton.textContent = 'Preparando…';
   try{
-    const [perfiles, partes] = await Promise.all([leerPerfiles(), leerTodosLosPartes()]);
-    const filas = filasCsv(perfiles, partes);
-    const csv = '﻿' + [COLUMNAS_CSV, ...filas].map(f=>f.map(celdaCsv).join(';')).join('\r\n') + '\r\n';
-    const nombre = 'vimeca_partes_'+iso(HOY())+'.csv';
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
-    a.download = nombre;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
-    avisar('Descargado '+nombre+': '+partes.length+' semanas, '+filas.length+' filas.');
+    const { hojas, nombre, resumen } = await generar();
+    descargarFichero(await crearLibroExcel(hojas), nombre, TIPO_XLSX);
+    avisar('Descargado '+nombre+(resumen ? ': '+resumen : '')+'.');
   }catch(e){
     if(e.tipo === 'sesion'){ marcarSesionCaducada(); return; }
-    informar('No se ha podido exportar', e.tipo==='sin_conexion' ? 'Sin conexión. Para exportar hace falta cobertura.' : e.message);
-  }finally{ b.disabled = false; b.textContent = texto; }
+    informar('No se ha podido exportar', e.tipo==='sin_conexion' ? 'Sin conexión. Para exportar todos los datos hace falta cobertura.' : (e.message || String(e)));
+  }finally{ boton.disabled = false; boton.textContent = texto; }
+}
+
+$('btnExcelSemana').addEventListener('click', () => {
+  if(!panel.semanaCargada){ cerrarMenuMas(); avisar('Todavía no hay datos cargados.'); return; }
+  exportarExcel($('btnExcelSemana'), async () => ({
+    hojas: hojasExcelSemana(panel.perfiles, panel.partes, panel.semanaCargada),
+    nombre: 'vimeca_partes_semana_'+panel.semanaCargada+'.xlsx',
+    resumen: panel.partes.length+' parte'+(panel.partes.length!==1?'s':'')+' enviado'+(panel.partes.length!==1?'s':'')
+  }));
 });
+
+$('btnExportarTodo').addEventListener('click', () => exportarExcel($('btnExportarTodo'), async () => {
+  const [perfiles, partes] = await Promise.all([leerPerfiles(), leerTodosLosPartes()]);
+  return { hojas: hojasExcelCompleto(perfiles, partes), nombre: 'vimeca_partes_completo_'+iso(HOY())+'.xlsx',
+           resumen: partes.length+' semana'+(partes.length!==1?'s':'')+' de partes' };
+}));

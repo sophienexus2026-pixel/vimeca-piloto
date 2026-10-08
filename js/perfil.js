@@ -199,25 +199,19 @@ $('btnCerrarSesion').addEventListener('click', () => {
   confirmar('Cerrar sesión', texto, cerrarSesion, 'Cerrar sesión');
 });
 
-/* ================= Texto de privacidad (legal/privacy-terms.md) =================
-   Es un BORRADOR pendiente de revisión legal. Se muestra tal cual con un conversor mínimo de
-   Markdown: títulos, párrafos, listas, citas y negritas. */
-let promesaTerminos = null;
+/* ================= Texto de privacidad =================
+   Es un BORRADOR pendiente de revisión legal. El texto va dentro de la app: js/terminos.js
+   (variable TERMINOS), generado desde legal/privacy-terms.md con herramientas/generar-terminos.js.
+   Así se ve sin cobertura y nunca depende de descargar un fichero. Se muestra con un conversor
+   mínimo de Markdown: títulos, párrafos, listas, citas y negritas. */
+let terminosHtml = null;
 function cargarTerminos(){
-  if(!promesaTerminos){
-    promesaTerminos = fetch('legal/privacy-terms.md', { cache:'no-cache' })
-      .then(r => { if(!r.ok) throw new Error(r.status); return r.text(); })
-      .then(leerTerminos)
-      .catch(e => { promesaTerminos = null; throw e; });
-  }
-  return promesaTerminos;
-}
-function leerTerminos(texto){
-  texto = texto.replace(/\r\n/g, '\n');
-  const cab = /^---\n([\s\S]*?)\n---\n/.exec(texto);
-  const version = cab ? (/^version:\s*(.+)$/m.exec(cab[1])?.[1] || '').trim() : '';
-  const cuerpo = (cab ? texto.slice(cab[0].length) : texto).replace(/<!--[\s\S]*?-->/g, '');
-  return { version, html: markdownAHtml(cuerpo) };
+  if(typeof TERMINOS === 'undefined' || !TERMINOS.markdown) throw new Error('falta js/terminos.js');
+  /* Si no coinciden, se aceptaría una versión mostrando otra: mejor no mostrar nada. */
+  if(TERMINOS.version !== CONFIG.versionTerminos)
+    throw new Error('versión de privacidad distinta: '+TERMINOS.version+' / '+CONFIG.versionTerminos);
+  terminosHtml ??= markdownAHtml(TERMINOS.markdown);
+  return { version: TERMINOS.version, html: terminosHtml };
 }
 function markdownAHtml(md){
   const enLinea = s => escapar(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
@@ -240,33 +234,38 @@ function markdownAHtml(md){
   cerrar();
   return html;
 }
-async function pintarTerminos(el){
-  el.innerHTML = '<p class="gris">Cargando…</p>';
+function pintarTerminos(el){
   try{
-    const t = await cargarTerminos();
-    el.innerHTML = t.html + '<p class="version-terminos">Versión '+escapar(t.version || CONFIG.versionTerminos)+'</p>';
+    const t = cargarTerminos();
+    el.innerHTML = t.html + '<p class="version-terminos">Versión '+escapar(t.version)+'</p>';
     return true;
   }catch(e){
-    el.innerHTML = '<p class="error">No se ha podido cargar el texto. Comprueba la conexión y vuelve a intentarlo.</p>';
+    console.error('Privacidad:', e.message);
+    el.innerHTML = '<p class="error">No se ha podido mostrar el texto. Cierra la app del todo y vuelve a abrirla; si sigue igual, avisa al encargado.</p>';
     return false;
   }
 }
 
+/* La hoja de privacidad siempre se puede cerrar: ✕, botón «Cerrar», tecla atrás/Esc y tocando
+   fuera. Nunca bloquea el formulario de crear cuenta: la casilla de aceptar es independiente. */
+function abrirTerminos(aceptada){
+  $('terminosAceptados').textContent = aceptada;
+  $('terminosAceptados').hidden = !aceptada;
+  pintarTerminos($('terminosTexto'));
+  $('dlgTerminos').showModal();
+  $('terminosCuerpo').scrollTop = 0;
+}
+$('dlgTerminos').addEventListener('click', e => { if(e.target === e.currentTarget) e.currentTarget.close(); });
+
 $('btnVerTerminos').addEventListener('click', () => {
   const pend = cargar(K.terminos(uid), null);
-  $('terminosAceptados').textContent =
+  abrirTerminos(
       perfil?.terms_version === CONFIG.versionTerminos && perfil.terms_accepted_at
         ? 'Aceptada el '+fmtFechaHora(perfil.terms_accepted_at)+' (versión '+perfil.terms_version+').'
     : pend ? 'Aceptada el '+fmtFechaHora(pend.aceptadoAt)+' en este móvil; se guardará en el servidor cuando haya cobertura.'
-    : '';
-  pintarTerminos($('terminosTexto'));
-  $('dlgTerminos').showModal();
+    : '');
 });
-$('btnLeerTerminosReg').addEventListener('click', () => {
-  $('terminosAceptados').textContent = '';
-  pintarTerminos($('terminosTexto'));
-  $('dlgTerminos').showModal();
-});
+$('btnLeerTerminosReg').addEventListener('click', () => abrirTerminos(''));
 
 /* ================= Aceptación ================= */
 function necesitaConsentimiento(){
@@ -283,7 +282,7 @@ async function mostrarConsentimiento(){
   $('consAcepto').disabled = true;
   $('btnAceptarTerminos').disabled = true;
   $('consError').hidden = true;
-  $('consAcepto').disabled = !(await pintarTerminos($('consTexto')));
+  $('consAcepto').disabled = !pintarTerminos($('consTexto'));
 }
 $('consAcepto').addEventListener('change', e => { $('btnAceptarTerminos').disabled = !e.target.checked; });
 

@@ -16,6 +16,33 @@ function informar(titulo, texto){
   $('dlgInfo').showModal();
 }
 
+/* ================= Diálogos: cerrar con el fondo y con «atrás» =================
+   Todos los diálogos se cierran con su botón, tocando el fondo oscuro y con el gesto o botón
+   «atrás» del móvil. Al abrir uno se añade una entrada al historial; «atrás» la quita y cierra el
+   diálogo en vez de salir de la app. Si se cierra de otra forma, la entrada se quita con
+   history.back() (y ese retroceso propio se ignora).
+   Al cerrar con el fondo o con «atrás», returnValue es 'fuera': no cuenta como «Cancelar». */
+let retrocesosPropios = 0;
+function cerrarFuera(d){ if(d.open) d.close('fuera'); }
+document.querySelectorAll('dialog').forEach(d => {
+  d.addEventListener('click', e => {
+    if(e.target !== d) return;            // solo el fondo: el contenido del diálogo es su <form>
+    const r = d.getBoundingClientRect();
+    if(e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) cerrarFuera(d);
+  });
+});
+new MutationObserver(cambios => {
+  for(const c of cambios){
+    if(c.target.open) history.pushState({ dialogo:true }, '');
+    else if(history.state?.dialogo){ retrocesosPropios++; history.back(); }
+  }
+}).observe(document.body, { subtree:true, attributes:true, attributeFilter:['open'] });
+window.addEventListener('popstate', () => {
+  if(retrocesosPropios > 0){ retrocesosPropios--; return; }
+  const abiertos = [...document.querySelectorAll('dialog[open]')];
+  if(abiertos.length) cerrarFuera(abiertos[abiertos.length-1]);
+});
+
 /* ================= Confirmación genérica (v1) ================= */
 let accionConf=null, accionCancelar=null;
 function confirmar(titulo,texto,fn,textoBoton,textoCancelar,alCancelar){
@@ -248,10 +275,12 @@ let ctxObra=null;
 function abrirObra(clave,fIso,etiqueta){
   ctxObra={clave,fIso};
   $('dlgObraSub').textContent=etiqueta;
-  $('inObra').value=''; $('inHoras').value='';
+  $('inObra').value=''; $('inHoras').value=''; errorDialogo('obraError','');
   $('obrasPrevias').innerHTML=obrasUsadas().map(o=>`<option value="${escapar(o)}">`).join('');
   $('dlgObra').showModal();
 }
+/* Error dentro del propio diálogo (antes era un alert() del navegador). */
+function errorDialogo(id, msg){ $(id).textContent=msg; $(id).hidden=!msg; }
 /* Horas válidas: de 0 a 24 en tramos de media hora. */
 function leerHoras(valor){
   const h=parseFloat(String(valor).replace(',','.'));
@@ -263,9 +292,9 @@ function leerHoras(valor){
 $('dlgObraOk').addEventListener('click',()=>{
   const obra=$('inObra').value.trim();
   const r=leerHoras($('inHoras').value);
-  if(!obra){ alert('Indica la obra o el lugar de trabajo.'); return; }
-  if(r.error==='vacio'){ alert('Indica las horas realizadas (por ejemplo 8).'); return; }
-  if(r.error){ alert(r.error); return; }
+  if(!obra){ errorDialogo('obraError','Indica la obra o el lugar de trabajo.'); return; }
+  if(r.error==='vacio'){ errorDialogo('obraError','Indica las horas realizadas (por ejemplo 8).'); return; }
+  if(r.error){ errorDialogo('obraError', r.error); return; }
   anadirEntrada(ctxObra.clave, ctxObra.fIso, obra, r.horas);
   $('dlgObra').close(); pintarSemana();
 });
@@ -293,15 +322,15 @@ $('btnExtras').addEventListener('click',()=>{
   const t=totalesSemana(clave);
   const esta = clave===claveActual() ? 'esta semana' : 'la semana del '+rangoSemana(clave);
   $('extrasResumen').textContent=perfil.nombre+', '+esta+' llevas '+fmtHoras(t.total)+' ('+fmtHoras(t.extras)+' extras). Hoy es '+DIAS[(HOY().getDay()+6)%7]+' '+fmtCorta(HOY())+'.';
-  $('inExtraHoras').value='';
+  $('inExtraHoras').value=''; errorDialogo('extrasError','');
   $('dlgExtras').showModal();
 });
 $('dlgExtrasOk').addEventListener('click',()=>{
   const r=leerHoras($('inExtraHoras').value);
-  if(r.error==='vacio' || r.horas===0){ alert('Indica cuántas horas extras quieres añadir.'); return; }
-  if(r.error){ alert(r.error); return; }
+  if(r.error==='vacio' || r.horas===0){ errorDialogo('extrasError','Indica cuántas horas extras quieres añadir.'); return; }
+  if(r.error){ errorDialogo('extrasError', r.error); return; }
   const clave=semanaVista||claveActual(), fIso=$('inExtraDia').value;
-  if(extrasDia(diaDe(clave,fIso))+r.horas>24){ alert('Como máximo 24 horas extra en un día.'); return; }
+  if(extrasDia(diaDe(clave,fIso))+r.horas>24){ errorDialogo('extrasError','Como máximo 24 horas extra en un día.'); return; }
   anadirExtras(clave, fIso, r.horas);
   $('dlgExtras').close(); pintarSemana();
 });

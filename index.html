@@ -26,21 +26,24 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
 <script defer src="js/sincronizacion.js"></script>
 <script defer src="js/informe.js"></script>
 <script defer src="js/tecnico.js"></script>
+<script defer src="js/terminos.js"></script>
 <script defer src="js/perfil.js"></script>
+<script defer src="js/libro-excel.js"></script>
+<script defer src="js/exportar-excel.js"></script>
 <script defer src="js/panel.js"></script>
 <script defer src="js/app.js"></script>
 </head>
 <body>
 
 <!-- ============ ACCESO: ENTRAR / CREAR CUENTA ============ -->
-<section id="vAcceso" class="pantalla-acceso" hidden>
+<section id="vAcceso" class="pantalla-acceso pantalla-blanca" hidden>
   <div class="acceso-caja">
     <div class="logo-tarjeta"><img src="assets/logo.jpg" alt="Instalaciones Vimeca"></div>
     <h1>Partes de Trabajo</h1>
     <p>Entra con tu email y tu contraseña. Si es la primera vez, crea tu cuenta.</p>
     <div class="pestanas" role="tablist">
-      <button type="button" id="pestEntrar" class="activa" role="tab">Entrar</button>
-      <button type="button" id="pestCrear" role="tab">Crear cuenta</button>
+      <button type="button" id="pestEntrar" class="activa" role="tab" aria-selected="true">Entrar</button>
+      <button type="button" id="pestCrear" role="tab" aria-selected="false">Crear cuenta</button>
     </div>
     <form id="formAcceso" novalidate>
       <div id="camposNombre" hidden>
@@ -76,7 +79,7 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
 </section>
 
 <!-- ============ PRIVACIDAD Y CONDICIONES (primera vez y cada vez que cambie la versión) ============ -->
-<section id="vConsentimiento" class="pantalla-acceso" hidden>
+<section id="vConsentimiento" class="pantalla-acceso pantalla-blanca" hidden>
   <div class="acceso-caja ancha">
     <div class="logo-tarjeta"><img src="assets/logo.jpg" alt="Instalaciones Vimeca"></div>
     <h1>Privacidad y condiciones de uso</h1>
@@ -138,7 +141,8 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
         <div class="menu-mas">
           <button class="b b-gris" id="btnMas" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menuMas">⋯ Más acciones</button>
           <div class="menu" id="menuMas" role="menu" hidden>
-            <button type="button" role="menuitem" id="btnExportarTodo">Exportar todos los datos</button>
+            <button type="button" role="menuitem" id="btnExcelSemana">Exportar Excel de la semana</button>
+            <button type="button" role="menuitem" id="btnExportarTodo">Exportar todos los datos (Excel)</button>
             <button type="button" role="menuitem" id="btnActualizar">Actualizar</button>
           </div>
         </div>
@@ -263,6 +267,7 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
       <label for="inHoras">HORAS REALIZADAS</label>
       <input id="inHoras" type="number" inputmode="decimal" min="0" max="24" step="0.5" placeholder="Ej.: 8">
     </div>
+    <span class="error" id="obraError" role="alert" hidden></span>
     <div class="dlg-botones">
       <button value="cancel" class="b-gris" type="submit" formnovalidate>Cancelar</button>
       <button id="dlgObraOk" class="b-verde" type="button">Guardar</button>
@@ -282,6 +287,7 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
       <label for="inExtraHoras">HORAS EXTRAS A AÑADIR</label>
       <input id="inExtraHoras" type="number" inputmode="decimal" min="0.5" max="24" step="0.5" placeholder="Ej.: 2">
     </div>
+    <span class="error" id="extrasError" role="alert" hidden></span>
     <div class="dlg-botones">
       <button value="cancel" class="b-gris" type="submit" formnovalidate>Cancelar</button>
       <button id="dlgExtrasOk" class="b-magenta" type="button">Añadir</button>
@@ -349,11 +355,17 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   </form>
 </dialog>
 
-<dialog id="dlgTerminos" class="hoja">
+<!-- Cabecera y pie fijos: ✕ y «Cerrar» siempre a la vista, aunque el texto sea largo -->
+<dialog id="dlgTerminos" class="hoja hoja-terminos" aria-labelledby="terminosTitulo">
   <form method="dialog" class="dlg">
-    <button value="cancel" class="cerrar-x" type="submit" formnovalidate aria-label="Cerrar">✕</button>
-    <p class="sub" id="terminosAceptados"></p>
-    <div class="texto-legal" id="terminosTexto" tabindex="0"></div>
+    <div class="terminos-cab">
+      <h3 id="terminosTitulo">Privacidad y condiciones de uso</h3>
+      <button value="cancel" class="cerrar-x" type="submit" formnovalidate aria-label="Cerrar">✕</button>
+    </div>
+    <div class="terminos-cuerpo" id="terminosCuerpo">
+      <p class="sub" id="terminosAceptados" hidden></p>
+      <div class="texto-legal" id="terminosTexto" tabindex="0"></div>
+    </div>
     <div class="dlg-botones">
       <button value="cancel" class="b-gris" type="submit" formnovalidate>Cerrar</button>
     </div>

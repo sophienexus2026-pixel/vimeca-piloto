@@ -7,22 +7,24 @@
    dominio y, por tanto, Cache Storage: así ninguno borra ni sirve los ficheros del otro. */
 importScripts('./config.js');
 
-const VERSION_CACHE='pv2-app-2';   // v2.1.0: subir este número en cada versión para que los móviles se actualicen
+const VERSION_CACHE='pv2-app-4';   // v2.1.1: subir este número en cada versión para que los móviles se actualicen
 const AMBITO=self.registration.scope;
 const CACHE=VERSION_CACHE+'@'+AMBITO;
 const SUPABASE_JS='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js';
 const FICHEROS=[
   './','./index.html','./config.js','./css/app.css',
   './js/fechas.js','./js/almacen.js','./js/api.js','./js/sincronizacion.js',
-  './js/informe.js','./js/tecnico.js','./js/perfil.js','./js/panel.js','./js/app.js',
-  './legal/privacy-terms.md',
+  './js/informe.js','./js/tecnico.js','./js/terminos.js','./js/perfil.js','./js/libro-excel.js','./js/exportar-excel.js','./js/panel.js','./js/app.js',
   './manifest.webmanifest','./icon-192.png','./icon-512.png','./assets/logo.jpg'
 ];
 const ORIGEN_SUPABASE=(()=>{ try{ return new URL(CONFIG.supabaseUrl).origin; }catch(e){ return null; } })();
 
+/* Cada fichero se guarda por separado: con addAll, UN solo fichero que falte (404) hacía fallar la
+   instalación entera y la app se quedaba sin modo sin cobertura (pasó en el piloto: faltaba
+   legal/privacy-terms.md). Los que falten se avisan en la consola. */
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE)
-    .then(c=>c.addAll(FICHEROS).then(()=>c.add(SUPABASE_JS).catch(()=>{})))
+    .then(c=>Promise.all([...FICHEROS, SUPABASE_JS].map(f=>c.add(f).catch(err=>console.warn('SW: no se pudo guardar',f,err)))))
     .then(()=>self.skipWaiting()));
 });
 /* Solo se borran versiones anteriores de ESTA app en ESTE ámbito. */

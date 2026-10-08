@@ -5,7 +5,7 @@
 var CONFIG = {
   supabaseUrl: 'https://bymojtalvbnektyuwulp.supabase.co',
   supabaseClaveAnon: 'sb_publishable_QhXJYJABgI6knunOS8mFdA_b0W6ek3C',
-  versionApp: '2.1.0',
+  versionApp: '2.1.1',
   versionTerminos: '1.0-borrador',  // = «version:» de legal/privacy-terms.md. Si cambia, todos vuelven a aceptar
   entorno: 'piloto',        // 'piloto' muestra una banda «VERSIÓN PILOTO» en todas las pantallas
   empresa: {
