@@ -1,10 +1,12 @@
 'use strict';
 /* ================= Exportar a Excel (encargado) =================
    Sustituye a la exportación CSV: el CSV con «;» se abría con todo en la columna A en los visores
-   de Android. Genera un .xlsx con tres hojas:
+   de Android. Genera un .xlsx con cuatro hojas:
      Resumen   una fila por técnico (y semana, en la exportación completa), horas de cada día,
                normales, extra, total y estado, más la fila TOTAL EQUIPO con fórmulas
-     Detalle   una fila por obra; los días sin obras (vacaciones, baja…) llevan una fila con su tipo
+     Detalle   una fila por obra; los días sin obras (vacaciones, baja…) llevan una fila con su tipo.
+               v2.2: entrada, salida y minutos de descanso y de comida de cada día
+     Fichajes  v2.2: una fila por evento de fichaje, con «Corregido» y el motivo
      Técnicos  nombre, email, teléfono, DNI/NIF, alta y si está activo
    Los desactivados se incluyen siempre, marcados «Desactivado»: es el registro de jornada.
    Solo funciones puras (sin pantalla): las usa panel.js y las prueba herramientas/probar-excel.js. */
@@ -20,6 +22,7 @@ function diasDeParte(p){
       entradas: [...d.entradas].sort((a,b)=>a.orden-b.orden).map(e=>({obra:e.obra, horas:Number(e.horas)})),
       horasExtra: Number(d.horas_extra) || 0
     };
+    if(d.hora_inicio && d.hora_fin){ dias[d.fecha].horaInicio = d.hora_inicio.slice(0,5); dias[d.fecha].horaFin = d.hora_fin.slice(0,5); }
   }
   return dias;
 }
@@ -103,28 +106,37 @@ function hojaResumen(filas, titulo, conSemana, dias){
   };
 }
 
-/* ---------- Hoja Detalle ---------- */
-function hojaDetalle(partes, porId, conSemana){
-  const cab = ['Técnico', ...(conSemana ? ['Semana'] : []), 'Fecha', 'Día', 'Tipo de día', 'Obra', 'Horas', 'Horas extra', 'Estado', 'Enviado el', 'Modificado el'];
+/* ---------- Hoja Detalle ----------
+   v2.2: Entrada y Salida (las del parte enviado; si no las lleva, las del fichaje) en todas las filas
+   del día; Descanso y Comida (minutos tomados, del fichaje) solo en la primera, como las extras, para
+   que sumar la columna no los cuente dos veces. jornadas = jornadasPorUsuario(fichajes). */
+function hojaDetalle(partes, porId, conSemana, jornadas = {}){
+  const cab = ['Técnico', ...(conSemana ? ['Semana'] : []), 'Fecha', 'Día', 'Tipo de día', 'Entrada', 'Salida', 'Obra', 'Horas', 'Horas extra',
+    'Descanso (min)', 'Comida (min)', 'Estado', 'Enviado el', 'Modificado el'];
   const salida = [cab.map(v => ({ v, estilo:'cabecera' }))];
   let tH = 0, tX = 0;
+  const minutos = m => m ? Math.round(m) : '';
   for(const p of partes){
     const u = porId.get(p.user_id);
     const comun = [u ? nombreExcel(u) : p.user_id, ...(conSemana ? [{ v:deIso(p.semana), tipo:'fecha' }] : [])];
     const cola = [estadoExcel(p), { v:fechaDe(p.enviado_at), tipo:'fechaHora' }, { v:fechaDe(p.modificado_at), tipo:'fechaHora' }];
     for(const [fIso, dd] of Object.entries(diasDeParte(p)).sort(([a],[b]) => a<b ? -1 : 1)){
-      const f = deIso(fIso);
-      const base = [...comun, { v:f, tipo:'fecha' }, DIAS[(f.getDay()+6)%7], TIPOS[dd.tipo]];
+      const f = deIso(fIso), j = jornadas[p.user_id]?.[fIso];
+      const entrada = dd.horaInicio || (j?.entrada ? hhmm(j.entrada.hora) : null);
+      const salidaH = dd.horaFin || (j?.salida ? hhmm(j.salida.hora) : null);
+      const base = [...comun, { v:f, tipo:'fecha' }, DIAS[(f.getDay()+6)%7], TIPOS[dd.tipo],
+        dd.tipo === 'trabajado' && entrada ? { v:entrada, tipo:'hora' } : '', dd.tipo === 'trabajado' && salidaH ? { v:salidaH, tipo:'hora' } : ''];
+      const pausas = [minutos(j?.descansoMin), minutos(j?.comidaMin)];
       if(dd.tipo !== 'trabajado' || !dd.entradas.length){
-        salida.push([...base, '', 0, dd.tipo === 'trabajado' ? dd.horasExtra : 0, ...cola]);
+        salida.push([...base, '', 0, dd.tipo === 'trabajado' ? dd.horasExtra : 0, ...(dd.tipo === 'trabajado' ? pausas : ['','']), ...cola]);
         if(dd.tipo === 'trabajado') tX += dd.horasExtra;
         continue;
       }
-      // Las extras del día van en la primera obra (0 en las demás) para no contarlas dos veces.
+      // Las extras y las pausas del día van en la primera obra para no contarlas dos veces.
       dd.entradas.forEach((e, i) => {
         const x = i === 0 ? dd.horasExtra : 0;
         tH += e.horas; tX += x;
-        salida.push([...base, e.obra, e.horas, x, ...cola]);
+        salida.push([...base, e.obra, e.horas, x, ...(i === 0 ? pausas : ['','']), ...cola]);
       });
     }
   }
@@ -139,9 +151,37 @@ function hojaDetalle(partes, porId, conSemana){
   }
   return {
     nombre:'Detalle', filas:salida,
-    anchos:[42, ...(conSemana ? [12] : []), 12, 11, 13, 34, 8, 11, 28, 17, 17],
+    anchos:[42, ...(conSemana ? [12] : []), 12, 11, 13, 9, 9, 34, 8, 11, 14, 13, 28, 17, 17],
     congelar:{ filas:1, columnas:1 }, horizontal:true,
     filtro: ultima > 1 ? { desde:1, hasta:ultima, columnas:cab.length } : null
+  };
+}
+
+/* ---------- Hoja Fichajes (v2.2) ----------
+   Una fila por evento, tal como se guardó (nada se borra ni se modifica). «Vigente: No» = otro
+   evento lo corrigió después; «Corregido: Sí» = es una corrección, con su motivo y, si cambió la
+   hora de otro evento, la hora original. */
+function hojaFichajes(fichajesServidor, porId){
+  const cab = ['Técnico', 'Fecha', 'Día', 'Evento', 'Hora', 'Obra', 'Pausa prevista (min)', 'Vigente', 'Corregido', 'Motivo',
+    'Hora original', 'Recibido en el servidor', 'Reloj desfasado'];
+  const porIdF = new Map(fichajesServidor.map(x => [x.id, x]));
+  const corregidos = new Set(fichajesServidor.filter(x => x.correccion_de).map(x => x.correccion_de));
+  const nombre = x => { const u = porId.get(x.user_id); return u ? nombreExcel(u) : x.user_id; };
+  const ordenados = [...fichajesServidor].sort((a,b) => nombre(a).localeCompare(nombre(b), 'es') || (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0)
+    || new Date(a.hora) - new Date(b.hora) || new Date(a.recibido_en) - new Date(b.recibido_en));
+  const salida = [cab.map(v => ({ v, estilo:'cabecera' }))];
+  for(const x of ordenados){
+    const f = deIso(x.fecha), orig = x.correccion_de ? porIdF.get(x.correccion_de) : null;
+    salida.push([nombre(x), { v:f, tipo:'fecha' }, DIAS[(f.getDay()+6)%7], TIPOS_FICHAJE[x.tipo] || x.tipo,
+      { v:new Date(x.hora), tipo:'fechaHora' }, x.obra || '', x.duracion_prevista_min ?? '',
+      corregidos.has(x.id) ? 'No' : 'Sí', x.motivo ? 'Sí' : 'No', x.motivo || '',
+      orig ? { v:new Date(orig.hora), tipo:'fechaHora' } : x.motivo ? 'Fichaje añadido' : '',
+      { v:fechaDe(x.recibido_en), tipo:'fechaHora' }, x.reloj_desfasado ? 'Sí' : 'No']);
+  }
+  return {
+    nombre:'Fichajes', filas:salida, anchos:[42, 12, 11, 18, 17, 30, 12, 9, 10, 36, 17, 21, 10],
+    congelar:{ filas:1, columnas:1 }, horizontal:true,
+    filtro: salida.length > 1 ? { desde:1, hasta:salida.length, columnas:cab.length } : null
   };
 }
 
@@ -164,7 +204,7 @@ function hojaTecnicos(perfiles){
 
 /* Una semana: todos los técnicos aprobados (también los pendientes de enviar) y los
    desactivados que enviaron algo esa semana. Misma lista que el PDF. */
-function hojasExcelSemana(perfiles, partes, semana){
+function hojasExcelSemana(perfiles, partes, semana, fichajesServidor = []){
   const porUsuario = new Map(partes.map(p => [p.user_id, p]));
   const porId = new Map(perfiles.map(u => [u.id, u]));
   const filas = perfiles
@@ -175,13 +215,15 @@ function hojasExcelSemana(perfiles, partes, semana){
   const ordenados = [...partes].sort((a,b) => porNombre(porId.get(a.user_id) || {nombre:'',apellidos:''}, porId.get(b.user_id) || {nombre:'',apellidos:''}));
   return [
     hojaResumen(filas, 'Semana '+fechaBarras(dias[0])+' al '+fechaBarras(dias[6]), false, dias),
-    hojaDetalle(ordenados, porId, false),
+    hojaDetalle(ordenados, porId, false, jornadasPorUsuario(fichajesServidor)),
+    hojaFichajes(fichajesServidor, porId),
     hojaTecnicos(perfiles)
   ];
 }
 
-/* Todo lo enviado: una fila por técnico y semana, de la más antigua a la más reciente. */
-function hojasExcelCompleto(perfiles, partes, ahora = new Date()){
+/* Todo lo enviado: una fila por técnico y semana, de la más antigua a la más reciente.
+   Con todos los fichajes guardados. */
+function hojasExcelCompleto(perfiles, partes, ahora = new Date(), fichajesServidor = []){
   const porId = new Map(perfiles.map(u => [u.id, u]));
   const nadie = { nombre:'', apellidos:'' };
   const ordenados = [...partes].sort((a,b) => a.semana < b.semana ? -1 : a.semana > b.semana ? 1
@@ -194,5 +236,6 @@ function hojasExcelCompleto(perfiles, partes, ahora = new Date()){
     ? 'Todos los partes enviados: semanas del '+fechaBarras(deIso(ordenados[0].semana))+' al '+fechaBarras(diasSemana(deIso(ordenados[ordenados.length-1].semana))[6])
       +' · exportado el '+fechaHoraBarras(ahora)
     : 'Todavía no hay partes enviados · exportado el '+fechaHoraBarras(ahora);
-  return [hojaResumen(filas, titulo, true, null), hojaDetalle(ordenados, porId, true), hojaTecnicos(perfiles)];
+  return [hojaResumen(filas, titulo, true, null), hojaDetalle(ordenados, porId, true, jornadasPorUsuario(fichajesServidor)),
+    hojaFichajes(fichajesServidor, porId), hojaTecnicos(perfiles)];
 }

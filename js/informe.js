@@ -1,7 +1,8 @@
 'use strict';
 /* ================= Informe imprimible (PDF) del técnico =================
    Misma maqueta que v1. v2 añade los tipos de día (Vacaciones, Baja…) en la fila TOTAL DÍA
-   y en TRABAJOS REALIZADOS, y el pie aprobado con la fecha de generación. */
+   y en TRABAJOS REALIZADOS, y el pie aprobado con la fecha de generación. v2.2: entrada y salida de
+   los días fichados (fila «Entrada – salida» y en TRABAJOS REALIZADOS). */
 
 const pieInforme = () => 'Parte generado el '+fmtCorta(HOY())+' · © 2026 SophieNexus · Todos los derechos reservados';
 
@@ -35,6 +36,10 @@ function construirInforme(clave){
   }).join('');
   const filaExtras= totX>0 ? '<tr class="extras"><td class="obra">Horas extras</td>'+celdasX+'<td>+'+fmtHoras(totX).replace(' h','H')+'</td></tr>' : '';
 
+  // v2.2: entrada y salida de cada día, cuando las hay (días fichados)
+  const horarios=dias.map(d=>{ const dd=sem.dias[iso(d)]; return dd?.tipo==='trabajado' && dd.horaInicio ? dd.horaInicio+'–'+dd.horaFin : ''; });
+  const filaHorario= horarios.some(Boolean) ? '<tr class="horario"><td class="obra">Entrada – salida</td>'+horarios.map(h=>'<td>'+h+'</td>').join('')+'<td></td></tr>' : '';
+
   // Fila total por día: horas si es trabajado, el tipo si no, "—" si no se rellenó
   let totG=0;
   const celdasT=dias.map(d=>{
@@ -50,6 +55,7 @@ function construirInforme(clave){
     if(!dd) return '';
     if(dd.tipo!=='trabajado') return '<b>'+d.getDate()+':</b> '+TIPOS[dd.tipo];
     const partes=dd.entradas.map(e=>escapar(e.obra)+' ('+fmtHoras(e.horas).replace(' h','H')+')');
+    if(dd.horaInicio) partes.unshift(dd.horaInicio+'–'+dd.horaFin);   // v2.2: entrada y salida
     const x=extrasDia(dd);
     if(x>0) partes.push('+'+fmtHoras(x).replace(' h','H')+' extras');
     return partes.length? '<b>'+d.getDate()+':</b> '+partes.join(' / ') : '';
@@ -80,6 +86,7 @@ function construirInforme(clave){
       ${filas}
       ${filaExtras}
       <tr class="tot"><td class="obra">TOTAL DÍA</td>${celdasT}<td>${fmtHoras(totG).replace(' h','H')}</td></tr>
+      ${filaHorario}
     </table>
     <div class="inf-sec">
       <h4>TRABAJOS REALIZADOS</h4>
@@ -128,7 +135,8 @@ function construirInformeGlobal(semana, filas){
       if(dd.tipo!=='trabajado'){ trozos.push(escapar(f.usuario.nombre)+': '+TIPOS[dd.tipo]); return; }
       const obras=dd.entradas.map(e=>escapar(e.obra)+' ('+fH(e.horas)+'H)');
       if(extrasDia(dd)>0) obras.push('+'+fH(extrasDia(dd))+'H extras');
-      trozos.push(escapar(f.usuario.nombre)+': '+obras.join(', '));
+      const horario=dd.horaInicio ? dd.horaInicio+'–'+dd.horaFin+' ' : '';      // v2.2: entrada y salida
+      trozos.push(escapar(f.usuario.nombre)+': '+horario+obras.join(', '));
     });
     return trozos.length? '<b>'+d.getDate()+':</b> '+trozos.join(' / ') : '';
   }).filter(Boolean).join(' &nbsp;·&nbsp; ');

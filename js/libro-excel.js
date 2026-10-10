@@ -17,13 +17,13 @@
        horizontal: true                           // opcional: imprimir apaisado y a una página de ancho
      }]);
    Celda: null | texto | número | Date (fecha) | { v, tipo, f, estilo }
-     tipo:   'texto' | 'numero' | 'fecha' | 'fechaHora'
+     tipo:   'texto' | 'numero' | 'fecha' | 'fechaHora' | 'hora' (v = "HH:MM", celda de hora hh:mm)
      f:      fórmula sin «=» (p. ej. 'SUM(B6:B9)'); v es el valor ya calculado
      estilo: 'cabecera' | 'titulo' | 'subtitulo' | 'negrita' | 'total' | 'nota' | 'centro' | 'totalCentro'
    Los textos se limpian: los saltos de línea y tabuladores pasan a espacios y se quitan los
    caracteres de control, así ningún valor puede partir una fila. */
 
-const ESTILOS_EXCEL = { normal:0, cabecera:1, fecha:2, fechaHora:3, titulo:4, negrita:5, total:6, nota:7, subtitulo:8, totalFecha:9, centro:10, totalCentro:11 };
+const ESTILOS_EXCEL = { normal:0, cabecera:1, fecha:2, fechaHora:3, titulo:4, negrita:5, total:6, nota:7, subtitulo:8, totalFecha:9, centro:10, totalCentro:11, hora:12 };
 
 function limpiarTextoExcel(v){
   return String(v ?? '')
@@ -63,6 +63,12 @@ function xmlHoja(hoja, textos){
         s = estilo === 'total' ? ESTILOS_EXCEL.totalFecha : ESTILOS_EXCEL[tipo];
         v = serieExcel(v);
         if(tipo === 'fecha') v = Math.round(v);
+        tipo = 'numero';
+      } else if(tipo === 'hora'){
+        const m = /^(\d{1,2}):(\d{2})/.exec(String(v ?? ''));
+        if(!m) return;
+        s = ESTILOS_EXCEL.hora;
+        v = (Number(m[1])*60 + Number(m[2])) / 1440;      // fracción del día
         tipo = 'numero';
       }
       const ref = letraColumna(j) + r;
@@ -106,7 +112,7 @@ const rangoAbsoluto = (nombre, f) => "'"+nombre.replace(/'/g,"''")+"'!$A$"+f.des
 
 const XML_ESTILOS = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
   + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-  + '<numFmts count="2"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/><numFmt numFmtId="165" formatCode="dd/mm/yyyy hh:mm"/></numFmts>'
+  + '<numFmts count="3"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/><numFmt numFmtId="165" formatCode="dd/mm/yyyy hh:mm"/><numFmt numFmtId="166" formatCode="hh:mm"/></numFmts>'
   + '<fonts count="5">'
   +   '<font><sz val="11"/><name val="Calibri"/><family val="2"/></font>'
   +   '<font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font>'
@@ -121,7 +127,7 @@ const XML_ESTILOS = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
   +   '<border><left/><right/><top/><bottom style="thin"><color rgb="FF2F9E5B"/></bottom><diagonal/></border>'
   +   '<border><left/><right/><top style="thin"><color rgb="FF2F9E5B"/></top><bottom/><diagonal/></border></borders>'
   + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-  + '<cellXfs count="12">'
+  + '<cellXfs count="13">'
   +   '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'                                                      // 0 normal
   +   '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>'         // 1 cabecera
   +   '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'                               // 2 fecha
@@ -134,6 +140,7 @@ const XML_ESTILOS = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
   +   '<xf numFmtId="164" fontId="1" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>' // 9 total fecha
   +   '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center"/></xf>'  // 10 centrado
   +   '<xf numFmtId="0" fontId="1" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' // 11 total centrado
+  +   '<xf numFmtId="166" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'                               // 12 hora
   + '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
   + '</styleSheet>';
 

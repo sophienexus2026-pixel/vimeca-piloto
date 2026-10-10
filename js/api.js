@@ -105,6 +105,8 @@ function mensajeRechazo(error){
     case 'dni_nif_no_valido': return 'El DNI / NIE / NIF no es válido. Revisa los números y la letra.';
     case 'foto_no_valida': return 'No se ha podido guardar la foto.';
     case 'version_no_valida': return 'No se ha podido guardar la aceptación de la política de privacidad.';
+    case 'solo_encargado': return 'Solo el encargado puede cambiar la duración de las pausas.';
+    case 'duracion_no_valida': return 'Duración no válida: el descanso va de 5 a 60 min y la comida de 15 a 120 min, de 5 en 5.';
     default: return 'El servidor no ha aceptado la semana ('+(error.message||'error desconocido')+').';
   }
 }
@@ -129,7 +131,7 @@ async function leerMisPartes(desde){
 
 /* ================= Panel del encargado =================
    El encargado lee todos los perfiles y partes (políticas RLS de schema.sql). */
-const CAMPOS_PARTE = 'id,user_id,semana,estado,version,enviado_at,modificado_at,dias(fecha,tipo,horas_extra,entradas(obra,horas,orden))';
+const CAMPOS_PARTE = 'id,user_id,semana,estado,version,enviado_at,modificado_at,dias(fecha,tipo,horas_extra,hora_inicio,hora_fin,entradas(obra,horas,orden))';
 
 async function leerPerfiles(){
   const { data, error, status } = await cliente().from('profiles')
@@ -213,4 +215,46 @@ async function enlacesFotosApi(rutas){
   const mapa = {};
   for(const f of data || []) if(f.signedUrl && !f.error) mapa[f.path] = f.signedUrl;
   return mapa;
+}
+
+/* ================= v2.2: fichajes y pausas =================
+   Tablas y funciones de supabase/migrations/2026-10-v2.2.sql. Los fichajes solo se añaden, con
+   registrar_fichajes(): nadie los modifica ni los borra desde la app. */
+const CAMPOS_FICHAJE = 'id,user_id,fecha,tipo,hora,obra,duracion_prevista_min,correccion_de,motivo,recibido_en,reloj_desfasado';
+
+/* Manda varios fichajes de una vez. Devuelve uno por evento: { id, ok, recibido_en, reloj_desfasado }
+   o { id, ok:false, error }. reloj = hora del móvil al mandarlos (para marcar relojes desfasados). */
+async function registrarFichajesApi(lista, reloj){
+  const { data, error, status } = await cliente().rpc('registrar_fichajes', { p_fichajes: lista, p_reloj: reloj });
+  if(error) throw errorDatos(error, status);
+  return data || [];
+}
+
+/* Fichajes desde una fecha, por páginas. Sin usuario: todos (solo el encargado los puede leer). */
+async function leerFichajesApi({ usuario = null, desde = null, hasta = null } = {}){
+  const todos = [], paso = 1000;
+  for(let inicio = 0; ; inicio += paso){
+    let q = cliente().from('fichajes').select(CAMPOS_FICHAJE);
+    if(usuario) q = q.eq('user_id', usuario);
+    if(desde) q = q.gte('fecha', desde);
+    if(hasta) q = q.lte('fecha', hasta);
+    const { data, error, status } = await q.order('recibido_en').order('id').range(inicio, inicio + paso - 1);
+    if(error) throw errorDatos(error, status);
+    todos.push(...data);
+    if(data.length < paso) return todos;
+  }
+}
+
+async function leerAjustesPausasApi(){
+  const { data, error, status } = await cliente().from('ajustes_pausas')
+    .select('descanso_min,comida_min,modificado_por,modificado_at').eq('id', 1).single();
+  if(error) throw errorDatos(error, status);
+  return data;
+}
+
+/* Solo el encargado. La base de datos comprueba los límites y guarda el historial. */
+async function cambiarAjustesPausasApi(descansoMin, comidaMin){
+  const { data, error, status } = await cliente().rpc('cambiar_ajustes_pausas', { p_descanso_min: descansoMin, p_comida_min: comidaMin });
+  if(error) throw errorDatos(error, status);
+  return data;
 }

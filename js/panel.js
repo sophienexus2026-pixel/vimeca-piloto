@@ -12,7 +12,11 @@ const LEYENDA_CELDAS = '8 +2 = 8 h normales y 2 h extra · VAC Vacaciones · BAJ
 const fH = n => (Math.round(n*100)/100).toString().replace('.',',');
 /* nombreCompleto() y diasDeParte() están en exportar-excel.js (se cargan antes que este fichero). */
 
-let panel = { semana:null, semanaCargada:null, perfiles:[], partes:[], verDesactivados:false, fotos:{} };
+let panel = { semana:null, semanaCargada:null, perfiles:[], partes:[], fichajes:[], jornadas:{}, verDesactivados:false, fotos:{} };
+
+/* v2.2: los fichajes son un añadido. Si la base de datos aún no tiene la migración v2.2 (la tabla no
+   existe), el panel sigue funcionando sin ellos. Sin conexión o con la sesión caducada, sí falla. */
+const fichajesOVacio = promesa => promesa.catch(e => { if(e.tipo === 'sin_conexion' || e.tipo === 'sesion') throw e; return []; });
 
 /* Una fila por técnico aprobado. Los desactivados solo salen en las semanas en que enviaron algo.
    En pantalla, además, solo si está marcado «Mostrar desactivados». El PDF los incluye siempre:
@@ -27,7 +31,7 @@ function filasSemana(conDesactivados = true){
       const dias = diasDeParte(parte);
       let normales = 0, extras = 0;
       for(const d of Object.values(dias)){ normales += horasDia(d); extras += extrasDia(d); }
-      return { usuario:u, parte, dias, normales, extras };
+      return { usuario:u, parte, dias, normales, extras, jornadas: panel.jornadas[u.id] || {} };
     });
 }
 
@@ -52,10 +56,12 @@ function estadoParte(p){
   return { clase:'enviado', texto:'Enviado', detalle: fmtFechaHora(p.enviado_at) };
 }
 
-/* "Lunes 28-09: Moral 8 h · Cadlán 2 h · +2 h extra" — los trabajos realizados de un técnico. */
-function lineasDetalle(dias, semana){
+/* "Lunes 28-09: Moral 8 h · Cadlán 2 h · +2 h extra" — los trabajos realizados de un técnico.
+   v2.2: con fichaje, delante la entrada y la salida y detrás las pausas; si se corrigió algún
+   fichaje, la marca «Corregido» con el motivo. jornadas = { fecha: calcularJornada() }. */
+function lineasDetalle(dias, semana, jornadas = {}){
   return diasSemana(deIso(semana)).map((d,i)=>{
-    const dd = dias[iso(d)];
+    const dd = dias[iso(d)], j = jornadas[iso(d)];
     let texto;
     if(!dd) texto = '<span class="gris">Sin rellenar</span>';
     else if(dd.tipo !== 'trabajado') texto = TIPOS[dd.tipo];
@@ -64,16 +70,25 @@ function lineasDetalle(dias, semana){
       if(extrasDia(dd) > 0) partes.push('<span class="x">+'+fmtHoras(extrasDia(dd))+' extra</span>');
       texto = partes.join(' · ');
     }
-    return '<div><b>'+DIAS[i]+' '+fmtDM(d)+':</b> '+texto+'</div>';
+    const horario = dd?.horaInicio ? dd.horaInicio+' a '+dd.horaFin
+      : j?.entrada ? hhmm(j.entrada.hora)+' a '+(j.salida ? hhmm(j.salida.hora) : '…') : '';
+    const pausas = [j?.descansoMin ? 'descanso '+fmtMinutos(j.descansoMin) : '', j?.comidaMin ? 'comida '+fmtMinutos(j.comidaMin) : ''].filter(Boolean);
+    const corregido = j?.corregida ? ' <span class="marca-corregido">Corregido</span> <span class="gris">('+escapar(j.motivos.join(' · '))+')</span>' : '';
+    return '<div><b>'+DIAS[i]+' '+fmtDM(d)+':</b> '+(horario ? '<span class="horario">'+horario+'</span> · ' : '')+texto
+      +(pausas.length ? ' <span class="gris">· '+pausas.join(' · ')+'</span>' : '')+corregido+'</div>';
   }).join('');
 }
+const detalleTecnico = (f, semana) => f.parte ? lineasDetalle(f.dias, semana, f.jornadas)
+  : '<span class="gris">No ha enviado esta semana.</span>'+(Object.keys(f.jornadas).length ? lineasDetalle({}, semana, f.jornadas) : '');
 
 /* ================= Carga y pintado ================= */
-async function mostrarPanel(){
+/* v2.2: el panel tiene pestañas (Cuadro · Semana · Equipo · Ajustes, en cuadro.js). Este fichero
+   es la pestaña Semana (el panel de v2) y la lista de cuentas de Equipo. */
+function mostrarPanel(){
   mostrarVista('vPanel');
   if(!panel.semana) panel.semana = claveActual();
   pintarSelectorSemanas();
-  await cargarSemanaPanel();
+  mostrarPestanaPanel(pestanaPanel);
 }
 
 function pintarSelectorSemanas(){
@@ -84,7 +99,13 @@ function pintarSelectorSemanas(){
 }
 $('selSemana').addEventListener('change', e => { panel.semana = e.target.value; cargarSemanaPanel(); });
 $('btnActualizar').addEventListener('click', () => { cerrarMenuMas(); cargarSemanaPanel(); });
-$('chkDesactivados').addEventListener('change', e => { panel.verDesactivados = e.target.checked; if(panel.semanaCargada) pintarPanel(); });
+function verDesactivados(si){
+  panel.verDesactivados = si;
+  $('chkDesactivados').checked = si; $('chkDesactivadosEquipo').checked = si;
+  if(panel.semanaCargada) pintarPanel(); else pintarCuentas();
+}
+$('chkDesactivados').addEventListener('change', e => verDesactivados(e.target.checked));
+$('chkDesactivadosEquipo').addEventListener('change', e => verDesactivados(e.target.checked));
 
 /* «⋯ Más acciones»: se cierra al elegir, al pulsar fuera o con Escape. */
 function cerrarMenuMas(){ $('menuMas').hidden = true; $('btnMas').setAttribute('aria-expanded', 'false'); }
@@ -101,9 +122,12 @@ async function cargarSemanaPanel(){
   const semana = panel.semana;
   $('panelCargando').hidden = false;
   try{
-    const [perfiles, partes] = await Promise.all([leerPerfiles(), leerPartesSemana(semana)]);
+    const domingo = iso(diasSemana(deIso(semana))[6]);
+    const [perfiles, partes, fich] = await Promise.all([leerPerfiles(), leerPartesSemana(semana),
+      fichajesOVacio(leerFichajesApi({ desde:semana, hasta:domingo }))]);
     if(semana !== panel.semana) return;            // el encargado ya ha cambiado de semana
     panel.perfiles = perfiles; panel.partes = partes; panel.semanaCargada = semana;
+    panel.fichajes = fich; panel.jornadas = jornadasPorUsuario(fich);
     $('panelSinConexion').hidden = true;
     cargarFotosPanel();
   }catch(e){
@@ -165,7 +189,7 @@ function pintarPanel(){
       <td class="tcol">${fH(f.normales+f.extras)}</td>
       <td class="estado"><span class="est ${est.clase}">${est.texto}</span>${est.detalle ? '<small>'+est.detalle+'</small>' : ''}</td>
     </tr>
-    <tr class="detalle" id="detalle-${idx}" hidden><td class="op-detalle" colspan="12">${f.parte ? lineasDetalle(f.dias, semana) : '<span class="gris">No ha enviado esta semana.</span>'}
+    <tr class="detalle" id="detalle-${idx}" hidden><td class="op-detalle" colspan="12">${detalleTecnico(f, semana)}
       <button type="button" class="b-ficha" data-ficha="${f.usuario.id}">Ver ficha</button></td></tr>`;
   });
   if(!filas.length) html += '<tr><td colspan="12" class="vacio">Todavía no hay técnicos aprobados.</td></tr>';
@@ -196,7 +220,7 @@ function pintarPanel(){
       ${totales(f.normales, f.extras)}
       ${tira(dias.map(d=>celdaDia(f.dias[iso(d)])))}
       <div class="tec-detalle" id="tdet-${idx}" hidden>
-        ${f.parte ? lineasDetalle(f.dias, semana) : '<span class="gris">No ha enviado esta semana.</span>'}
+        ${detalleTecnico(f, semana)}
         <button type="button" class="b-ficha" data-ficha="${f.usuario.id}">Ver ficha</button>
       </div>
     </article>`;
@@ -307,14 +331,14 @@ async function exportarExcel(boton, generar){
 $('btnExcelSemana').addEventListener('click', () => {
   if(!panel.semanaCargada){ cerrarMenuMas(); avisar('Todavía no hay datos cargados.'); return; }
   exportarExcel($('btnExcelSemana'), async () => ({
-    hojas: hojasExcelSemana(panel.perfiles, panel.partes, panel.semanaCargada),
+    hojas: hojasExcelSemana(panel.perfiles, panel.partes, panel.semanaCargada, panel.fichajes),
     nombre: 'vimeca_partes_semana_'+panel.semanaCargada+'.xlsx',
     resumen: panel.partes.length+' parte'+(panel.partes.length!==1?'s':'')+' enviado'+(panel.partes.length!==1?'s':'')
   }));
 });
 
 $('btnExportarTodo').addEventListener('click', () => exportarExcel($('btnExportarTodo'), async () => {
-  const [perfiles, partes] = await Promise.all([leerPerfiles(), leerTodosLosPartes()]);
-  return { hojas: hojasExcelCompleto(perfiles, partes), nombre: 'vimeca_partes_completo_'+iso(HOY())+'.xlsx',
-           resumen: partes.length+' semana'+(partes.length!==1?'s':'')+' de partes' };
+  const [perfiles, partes, fich] = await Promise.all([leerPerfiles(), leerTodosLosPartes(), fichajesOVacio(leerFichajesApi())]);
+  return { hojas: hojasExcelCompleto(perfiles, partes, new Date(), fich), nombre: 'vimeca_partes_completo_'+iso(HOY())+'.xlsx',
+           resumen: partes.length+' semana'+(partes.length!==1?'s':'')+' de partes y '+fich.length+' fichaje'+(fich.length!==1?'s':'') };
 }));

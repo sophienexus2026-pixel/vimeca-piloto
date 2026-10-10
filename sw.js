@@ -7,15 +7,18 @@
    dominio y, por tanto, Cache Storage: así ninguno borra ni sirve los ficheros del otro. */
 importScripts('./config.js');
 
-const VERSION_CACHE='pv2-app-4';   // v2.1.1: subir este número en cada versión para que los móviles se actualicen
+const VERSION_CACHE='pv2-app-5';   // v2.2.0: subir este número en cada versión para que los móviles se actualicen
 const AMBITO=self.registration.scope;
 const CACHE=VERSION_CACHE+'@'+AMBITO;
 const SUPABASE_JS='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js';
 const FICHEROS=[
   './','./index.html','./config.js','./css/app.css',
-  './js/fechas.js','./js/almacen.js','./js/api.js','./js/sincronizacion.js',
-  './js/informe.js','./js/tecnico.js','./js/terminos.js','./js/perfil.js','./js/libro-excel.js','./js/exportar-excel.js','./js/panel.js','./js/app.js',
-  './manifest.webmanifest','./icon-192.png','./icon-512.png','./assets/logo.jpg'
+  './js/fechas.js','./js/almacen.js','./js/api.js','./js/sincronizacion.js','./js/fichaje.js',
+  './js/informe.js','./js/tecnico.js','./js/fichar.js','./js/terminos.js','./js/perfil.js','./js/libro-excel.js','./js/exportar-excel.js','./js/panel.js','./js/cuadro.js','./js/app.js',
+  './manifest.webmanifest','./icon-192.png','./icon-512.png','./assets/logo.jpg',
+  './assets/fuentes/barlow-400.woff2','./assets/fuentes/barlow-500.woff2','./assets/fuentes/barlow-600.woff2','./assets/fuentes/barlow-700.woff2',
+  './assets/fuentes/barlow-condensed-500.woff2','./assets/fuentes/barlow-condensed-600.woff2','./assets/fuentes/barlow-condensed-700.woff2',
+  './assets/fuentes/share-tech-mono-400.woff2'
 ];
 const ORIGEN_SUPABASE=(()=>{ try{ return new URL(CONFIG.supabaseUrl).origin; }catch(e){ return null; } })();
 

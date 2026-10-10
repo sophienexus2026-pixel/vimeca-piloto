@@ -24,13 +24,16 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
 <script defer src="js/almacen.js"></script>
 <script defer src="js/api.js"></script>
 <script defer src="js/sincronizacion.js"></script>
+<script defer src="js/fichaje.js"></script>
 <script defer src="js/informe.js"></script>
 <script defer src="js/tecnico.js"></script>
+<script defer src="js/fichar.js"></script>
 <script defer src="js/terminos.js"></script>
 <script defer src="js/perfil.js"></script>
 <script defer src="js/libro-excel.js"></script>
 <script defer src="js/exportar-excel.js"></script>
 <script defer src="js/panel.js"></script>
+<script defer src="js/cuadro.js"></script>
 <script defer src="js/app.js"></script>
 </head>
 <body>
@@ -129,6 +132,29 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
     </div>
   </header>
 
+  <!-- v2.2: Cuadro general (diseño docs/disenos/fichaje/Cuadro.dc.html) -->
+  <section id="pCuadro" class="fx pestana">
+    <main class="fx-main">
+      <div class="fx-titulo">
+        <div><div class="fx-fecha" id="cuadroFecha"></div><h1 class="fx-h1">Cuadro general</h1></div>
+        <button type="button" class="fx-actualizar" id="btnActualizarCuadro">Actualizar</button>
+      </div>
+      <div id="cuadroSinConexion" class="aviso-hist" hidden>
+        <span id="cuadroSinConexionTexto"></span>
+        <button id="btnReintentarCuadro" type="button">Reintentar</button>
+      </div>
+      <div class="fx-contadores">
+        <div class="fx-contador servicio"><b id="cntServicio">0</b><span>En servicio</span></div>
+        <div class="fx-contador pausa"><b id="cntPausa">0</b><span>En pausa</span></div>
+        <div class="fx-contador fuera"><b id="cntFuera">0</b><span>Sin fichar</span></div>
+      </div>
+      <section class="fx-cuadro" id="cuadroTecnicos" aria-label="Técnicos"></section>
+      <div id="cuadroAvisos"></div>
+      <p class="fx-nota" id="cuadroActualizado"></p>
+    </main>
+  </section>
+
+  <section id="pSemana" class="pestana" hidden>
   <main>
     <div class="panel-controles">
       <select class="b sel-semana" id="selSemana" aria-label="Semana"></select>
@@ -165,13 +191,76 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
         <span class="muestra c-tipo">FEST</span> Festivo · <span class="muestra c-tipo">S/T</span> Sin trabajo ·
         <span class="muestra c-vacia">—</span> Sin rellenar</p>
     </div>
+  </main>
+  </section>
 
+  <section id="pEquipo" class="pestana" hidden>
+  <main>
     <div class="tarjeta cuentas">
       <h2>Cuentas</h2>
+      <label class="interruptor"><input type="checkbox" id="chkDesactivadosEquipo"> <span>Mostrar desactivados</span></label>
       <div id="zonaCuentas"></div>
     </div>
-    <p class="firma-dev">© 2026 SophieNexus · Todos los derechos reservados</p>
   </main>
+  </section>
+
+  <!-- v2.2: Ajustes › Pausas (diseño docs/disenos/fichaje/Ajustes.dc.html) -->
+  <section id="pAjustes" class="fx pestana" hidden>
+    <main class="fx-main">
+      <div>
+        <div class="fx-fecha">AJUSTES</div>
+        <h1 class="fx-h1">Pausas</h1>
+        <p class="fx-sub">Solo puedes cambiar la duración de cada pausa.</p>
+      </div>
+      <div id="ajustesSinConexion" class="aviso-hist" hidden>
+        <span id="ajustesSinConexionTexto"></span>
+        <button id="btnReintentarAjustes" type="button">Reintentar</button>
+      </div>
+      <section class="fx-tarjeta fx-ajuste" data-pausa="descanso">
+        <div>
+          <h2 class="fx-ajuste-nombre">Descanso</h2>
+          <span class="fx-regla cuenta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Cuenta como horas trabajadas</span>
+        </div>
+        <div class="fx-paso">
+          <button type="button" class="fx-paso-b" data-paso="-1" aria-label="Restar 5 minutos al descanso">−</button>
+          <div class="fx-paso-valor" aria-live="polite"><b id="valDescanso">15</b><span>min</span></div>
+          <button type="button" class="fx-paso-b" data-paso="1" aria-label="Sumar 5 minutos al descanso">+</button>
+        </div>
+        <p class="fx-ayuda">Entre 5 y 60 min · de 5 en 5</p>
+      </section>
+      <section class="fx-tarjeta fx-ajuste" data-pausa="comida">
+        <div>
+          <h2 class="fx-ajuste-nombre">Comida</h2>
+          <span class="fx-regla no-cuenta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>No cuenta como horas trabajadas</span>
+        </div>
+        <div class="fx-paso">
+          <button type="button" class="fx-paso-b" data-paso="-1" aria-label="Restar 5 minutos a la comida">−</button>
+          <div class="fx-paso-valor" aria-live="polite"><b id="valComida">60</b><span>min</span></div>
+          <button type="button" class="fx-paso-b" data-paso="1" aria-label="Sumar 5 minutos a la comida">+</button>
+        </div>
+        <p class="fx-ayuda">Entre 15 y 120 min · de 5 en 5</p>
+      </section>
+      <button type="button" class="fx-boton verde" id="btnGuardarAjustes">Guardar cambios</button>
+      <div class="fx-info">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        <span>Los cambios se aplican desde hoy. Las semanas anteriores conservan la duración que tenían.<br><span id="ajustesUltimo"></span></span>
+      </div>
+    </main>
+  </section>
+
+  <nav class="barra-fx" id="barraEncargado" aria-label="Secciones">
+    <div class="barra-fx-botones">
+      <button type="button" data-pestana="cuadro" aria-current="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>Cuadro</button>
+      <button type="button" data-pestana="semana">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Semana</button>
+      <button type="button" data-pestana="equipo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></svg>Equipo</button>
+      <button type="button" data-pestana="ajustes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Ajustes</button>
+    </div>
+    <p class="barra-fx-firma">© 2026 SophieNexus · Todos los derechos reservados</p>
+  </nav>
 </div>
 
 <!-- ============ APP DEL TÉCNICO ============ -->
@@ -187,6 +276,31 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
       <svg class="cab-flecha" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
     </button>
   </header>
+  <!-- v2.2: Fichar (diseños docs/disenos/fichaje/Main, Pausa y Contador) -->
+  <section id="tabFichar" class="fx pestana">
+    <main class="fx-main">
+      <div id="fxSinCerrar"></div>
+      <div class="fx-titulo">
+        <div><div class="fx-fecha" id="fxFecha"></div><h1 class="fx-h1">Fichaje de hoy</h1></div>
+        <div class="fx-pildora" id="fxPildora"><span class="fx-pildora-punto"></span><span id="fxPildoraTexto"></span></div>
+      </div>
+      <section class="fx-tarjeta fx-estado">
+        <div class="fx-caja" id="fxCaja" aria-hidden="true">
+          <div class="fx-caja-ref">VMC · C16</div>
+          <div class="fx-ranura"><span class="fx-i">I</span><div class="fx-palanca"></div><span class="fx-o">O</span></div>
+          <div class="fx-led"><span class="fx-led-punto"></span><span id="fxLed">OFF</span></div>
+        </div>
+        <div class="fx-datos" id="fxDatos"></div>
+      </section>
+      <div class="fx-acciones" id="fxAcciones"></div>
+      <section class="fx-tarjeta fx-pausas-hoy" id="fxPausasHoy" hidden></section>
+      <p class="fx-nota" id="fxNota"></p>
+      <div class="fx-sinc" id="fxSinc" hidden></div>
+      <section class="fx-tarjeta fx-consumo" id="fxConsumo" aria-label="Consumo de la semana"></section>
+    </main>
+  </section>
+
+  <section id="tabSemana" class="pestana" hidden>
   <div class="barra-semana">
     <button class="sem-nav" id="btnSemAnt" type="button" aria-label="Semana anterior">‹</button>
     <span class="fecha" id="cabFecha"></span>
@@ -215,27 +329,20 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
       </div>
       <div class="desg" id="totDesglose"></div>
     </div>
-    <p class="firma-dev">© 2026 SophieNexus · Todos los derechos reservados</p>
   </main>
 
-  <nav class="barra">
-    <button id="btnExtras" class="b-magenta">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg>
+  <!-- Las acciones de la semana (antes en la barra inferior) -->
+  <div class="acciones-semana">
+    <button id="btnExtras" class="b-magenta" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg>
       Horas extras
     </button>
-    <button id="btnEnviar" class="principal">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+    <button id="btnEnviar" class="principal" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
       Enviar
     </button>
-    <button id="btnHistorico">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#3B3540" stroke-width="2" stroke-linecap="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
-      Histórico
-    </button>
-    <button id="btnPerfil" class="btn-perfil">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#3B3540" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>
-      Perfil
-    </button>
-  </nav>
+  </div>
+  </section>
 </div>
 
 <!-- ============ HISTÓRICO ============ -->
@@ -249,9 +356,23 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   <main>
     <button class="volver" id="btnHistVolver">← Volver</button>
     <div id="listaHist"></div>
-    <p class="firma-dev">© 2026 SophieNexus · Todos los derechos reservados</p>
   </main>
 </div>
+
+<!-- v2.2: barra inferior del técnico (diseño docs/disenos/fichaje/Main.dc.html), en la app y en el histórico -->
+<nav class="barra-fx" id="barraTecnico" aria-label="Secciones" hidden>
+  <div class="barra-fx-botones">
+    <button type="button" data-pestana="fichar" aria-current="page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg>Fichar</button>
+    <button type="button" data-pestana="semana">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Semana</button>
+    <button type="button" data-pestana="historico" id="btnHistorico">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>Histórico</button>
+    <button type="button" id="btnPerfil" class="btn-perfil">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</button>
+  </div>
+  <p class="barra-fx-firma">© 2026 SophieNexus · Todos los derechos reservados</p>
+</nav>
 
 <!-- ============ DIÁLOGOS ============ -->
 <dialog id="dlgObra">
@@ -274,6 +395,52 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
     </div>
   </form>
 </dialog>
+
+<!-- v2.2: cambiar de obra sin salir del servicio -->
+<dialog id="dlgCambioObra">
+  <form method="dialog" class="dlg">
+    <h3>Cambiar de obra</h3>
+    <p class="sub" id="cambioObraSub"></p>
+    <div class="campo">
+      <label for="inCambioObra">NUEVA OBRA / LUGAR</label>
+      <input id="inCambioObra" type="text" placeholder="Ej.: Moral, Cadlán…" list="obrasRecientesLista" autocomplete="off">
+    </div>
+    <div class="fx-chips" id="chipsCambioObra"></div>
+    <span class="error" id="cambioObraError" role="alert" hidden></span>
+    <div class="dlg-botones">
+      <button value="cancel" class="b-gris" type="submit" formnovalidate>Cancelar</button>
+      <button id="dlgCambioObraOk" class="b-verde" type="button">Cambiar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- v2.2: corregir un fichaje. No borra nada: añade una corrección con su motivo. -->
+<dialog id="dlgCorregir">
+  <form method="dialog" class="dlg">
+    <h3>Corregir un fichaje</h3>
+    <p class="sub" id="corrSub"></p>
+    <div class="campo">
+      <label for="inCorrEvento">QUÉ HAY QUE CORREGIR</label>
+      <select id="inCorrEvento"></select>
+    </div>
+    <div class="campo">
+      <label for="inCorrHora">HORA CORRECTA</label>
+      <input id="inCorrHora" type="time" step="60">
+    </div>
+    <div class="campo">
+      <label for="inCorrMotivo">MOTIVO <small>(obligatorio)</small></label>
+      <input id="inCorrMotivo" type="text" list="motivosCorreccion" maxlength="300" placeholder="Ej.: Olvidé fichar la salida" autocomplete="off">
+      <datalist id="motivosCorreccion"></datalist>
+    </div>
+    <p class="ayuda-dlg">El fichaje original no se borra. El encargado verá el día como «Corregido» con este motivo.</p>
+    <span class="error" id="corrError" role="alert" hidden></span>
+    <div class="dlg-botones">
+      <button value="cancel" class="b-gris" type="submit" formnovalidate>Cancelar</button>
+      <button id="dlgCorrOk" class="b-verde" type="button">Guardar corrección</button>
+    </div>
+  </form>
+</dialog>
+<datalist id="obrasRecientesLista"></datalist>
 
 <dialog id="dlgExtras">
   <form method="dialog" class="dlg">

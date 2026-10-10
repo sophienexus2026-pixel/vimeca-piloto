@@ -65,8 +65,7 @@ $('dlgConfirmar').addEventListener('close',()=>{
 /* ================= Vista principal ================= */
 function mostrarApp(){
   if(!semanaVista) semanaVista=claveActual();
-  mostrarVista('vApp');
-  pintarSemana();
+  mostrarPestanaTecnico(pestanaTecnico);      // v2.2: Fichar por defecto (fichar.js)
   ofrecerImportacionV1();
 }
 
@@ -133,6 +132,8 @@ function pintarSemana(){
     const cuerpo=card.querySelector('.dia-cuerpo');
 
     if(editable) cuerpo.appendChild(selectorTipo(clave, fIso, dd, DIAS[i]));
+    const fichaje=lineaFichajeDia(fIso, editable);     // v2.2: entrada y salida fichadas (fichar.js)
+    if(fichaje) cuerpo.appendChild(fichaje);
 
     if(!dd) cuerpo.insertAdjacentHTML('beforeend','<div class="dia-vacio">Ningún trabajo registrado este día.</div>');
     else if(!trabajado) cuerpo.insertAdjacentHTML('beforeend','<div class="dia-vacio">Día marcado como '+TIPOS[dd.tipo]+'.</div>');
@@ -265,7 +266,7 @@ function alCambiarCola(r){
 }
 
 /* ================= Navegación por semanas ================= */
-function irASemana(clave){ semanaVista=clave; mostrarVista('vApp'); pintarSemana(); window.scrollTo(0,0); }
+function irASemana(clave){ semanaVista=clave; mostrarPestanaTecnico('semana'); }
 $('btnSemAnt').addEventListener('click',()=>{ const k=sumarSemanas(semanaVista,-1); if(k>=claveMasAntigua()) irASemana(k); });
 $('btnSemSig').addEventListener('click',()=>{ const k=sumarSemanas(semanaVista,1); if(k<=claveActual()) irASemana(k); });
 $('btnVolverActual').addEventListener('click',()=>irASemana(claveActual()));
@@ -354,8 +355,8 @@ function pintarHistorico(){
     lista.appendChild(b);
   });
 }
-$('btnHistorico').addEventListener('click',()=>{ mostrarVista('vHistorico'); pintarHistorico(); window.scrollTo(0,0); });
-$('btnHistVolver').addEventListener('click',()=>{ mostrarVista('vApp'); pintarSemana(); });
+/* «Histórico» está en la barra inferior (fichar.js). «Volver» lleva a la semana. */
+$('btnHistVolver').addEventListener('click',()=>mostrarPestanaTecnico('semana'));
 
 /* ================= Enviar ================= */
 $('btnEnviar').addEventListener('click',()=>{

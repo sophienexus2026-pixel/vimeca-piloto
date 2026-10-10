@@ -14,6 +14,13 @@
    …cola:<uid>          → [ { semana, envioId, datos, revLocal, encoladoAt, intentos, ultimoError, rechazo } ]
    …foto:<uid>          → { ruta, datos }            mi foto reducida (data URL) para verla sin cobertura
    …terminos_pendiente:<uid> → { version, aceptadoAt } privacidad aceptada sin cobertura, por mandar
+   …fichajes:<uid>      → [ { id, fecha, tipo, hora, obra, duracionPrevistaMin, correccionDe, motivo,
+                              estado: 'pendiente'|'guardado'|'rechazado', error, recibidoEn, relojDesfasado } ]
+                              en orden de creación (v2.2, ver fichaje.js)
+   …ajustes_pausas      → { descanso_min, comida_min, modificado_por, modificado_at }  últimas duraciones leídas
+
+   v2.2: un día trabajado puede llevar también horaInicio / horaFin ("HH:MM") y firmaFichaje: los pone
+   el fichaje al fichar la salida.
 
    Un día que no está en "dias" es un día sin rellenar (null), que no es lo mismo que "sin_trabajo".
    Los datos locales solo se borran cuando el servidor ha confirmado la semana (ver purgar). */
@@ -36,7 +43,9 @@ const K = {
   cola: u => PREFIJO+'cola:'+u,
   importadoV1: u => PREFIJO+'importado_v1:'+u,
   foto: u => PREFIJO+'foto:'+u,                        // mi foto (data URL), para verla sin cobertura
-  terminos: u => PREFIJO+'terminos_pendiente:'+u       // aceptación hecha sin cobertura, por mandar
+  terminos: u => PREFIJO+'terminos_pendiente:'+u,      // aceptación hecha sin cobertura, por mandar
+  fichajes: u => PREFIJO+'fichajes:'+u,                // v2.2: entrada, salida, pausas y cambios de obra
+  ajustesPausas: PREFIJO+'ajustes_pausas'              // v2.2: duraciones de las pausas, para fichar sin cobertura
 };
 const TIPOS = {
   trabajado:   'Trabajado',
@@ -50,17 +59,20 @@ let uid = null;
 let perfil = null;
 let semanas = {};
 let cola = [];
+let fichajes = [];
 
 function abrirAlmacen(u){
   uid = u;
   perfil = cargar(K.perfil(u), null);
   semanas = cargar(K.semanas(u), {});
   cola = cargar(K.cola(u), []);
+  fichajes = cargar(K.fichajes(u), []);
   purgar();
 }
-function cerrarAlmacen(){ uid=null; perfil=null; semanas={}; cola=[]; }
+function cerrarAlmacen(){ uid=null; perfil=null; semanas={}; cola=[]; fichajes=[]; }
 const guardarSemanas = () => guardar(K.semanas(uid), semanas);
 const guardarCola = () => guardar(K.cola(uid), cola);
+const guardarFichajes = () => guardar(K.fichajes(uid), fichajes);
 function guardarPerfil(p){ perfil=p; guardar(K.perfil(uid), p); }
 
 /* Solo se borran semanas fuera de plazo que el servidor ya confirmó y no están en la cola. */
@@ -73,6 +85,9 @@ function purgar(){
     }
   }
   if(cambio) guardarSemanas();
+  // Fichajes: igual, solo los que el servidor ya guardó y son de antes del plazo.
+  const quedan = fichajes.filter(e => e.fecha >= tope || e.estado !== 'guardado');
+  if(quedan.length !== fichajes.length){ fichajes = quedan; guardarFichajes(); }
 }
 
 /* ================= Semanas y días ================= */
@@ -98,7 +113,7 @@ function ponerTipo(clave, fIso, tipo){
   const s = semanaObj(clave);
   const antes = s.dias[fIso];
   if(!tipo) delete s.dias[fIso];
-  else if(tipo === 'trabajado') s.dias[fIso] = { tipo, entradas: antes?.entradas || [], horasExtra: antes?.horasExtra || 0 };
+  else if(tipo === 'trabajado') s.dias[fIso] = antes?.tipo === 'trabajado' ? antes : { tipo, entradas: [], horasExtra: 0 };
   else s.dias[fIso] = { tipo, entradas: [], horasExtra: 0 };
   tocarSemana(clave);
 }
@@ -156,11 +171,12 @@ function validarSemana(clave){
   return errores;
 }
 
-/* Datos que recibe enviar_parte(). No se envían hora_inicio / hora_fin (pendiente del cliente). */
+/* Datos que recibe enviar_parte(). v2.2: los días fichados llevan también hora_inicio / hora_fin. */
 function datosEnvio(clave){
   return Object.entries(semanas[clave].dias).sort(([a],[b])=>a<b?-1:1).map(([fecha, d]) =>
     d.tipo === 'trabajado'
-      ? { fecha, tipo:d.tipo, horas_extra:d.horasExtra||0, entradas:d.entradas.map(e=>({obra:e.obra, horas:e.horas})) }
+      ? { fecha, tipo:d.tipo, horas_extra:d.horasExtra||0, entradas:d.entradas.map(e=>({obra:e.obra, horas:e.horas})),
+          ...(d.horaInicio && d.horaFin ? { hora_inicio:d.horaInicio, hora_fin:d.horaFin } : {}) }
       : { fecha, tipo:d.tipo });
 }
 
@@ -177,6 +193,7 @@ function fusionarServidor(lista){
     const dias = {};
     for(const d of p.dias){
       dias[d.fecha] = { tipo:d.tipo, entradas:d.entradas.map(e=>({obra:e.obra, horas:Number(e.horas)})), horasExtra:Number(d.horas_extra)||0 };
+      if(d.hora_inicio && d.hora_fin){ dias[d.fecha].horaInicio = d.hora_inicio.slice(0,5); dias[d.fecha].horaFin = d.hora_fin.slice(0,5); }
     }
     const rev = (s?.revLocal||0) + 1;
     semanas[p.semana] = { dias, revLocal:rev, revEnviada:rev, servidor };

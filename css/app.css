@@ -12,6 +12,7 @@
   --rojo:#C0392B;
   --radio:14px;
   --sombra:0 1px 3px rgba(38,34,43,.10), 0 4px 14px rgba(38,34,43,.06);
+  --alto-barra:82px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none !important}   /* v2: v1 tenía reglas display:flex que anulaban el atributo hidden */
@@ -21,7 +22,9 @@ body{
   background:var(--fondo);color:var(--ink);
   min-height:100vh;
 }
-#vApp{padding-bottom:calc(96px + env(safe-area-inset-bottom))}   /* sitio para la barra inferior */
+/* v2.2: sitio para la barra inferior (pestañas) y, en Semana, para sus botones */
+body.con-barra{padding-bottom:calc(var(--alto-barra) + env(safe-area-inset-bottom))}
+#tabSemana{padding-bottom:70px}
 button{font:inherit;cursor:pointer;border:none;background:none}
 input,select{font:inherit}
 
@@ -130,20 +133,20 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 .total-sem .desg{text-align:right;font-size:.74rem;line-height:1.5;opacity:.9}
 .total-sem .desg i{color:#F09BE8;font-style:normal;font-weight:700}
 
-/* ---------- Barra inferior ---------- */
-.barra{
-  position:fixed;bottom:0;left:0;right:0;z-index:30;
-  background:var(--papel);border-top:1px solid var(--linea);
-  display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));
-  max-width:560px;margin:0 auto;
+/* ---------- Acciones de la semana (v2.2: antes en la barra inferior; ahora encima de las pestañas) ---------- */
+.acciones-semana{
+  position:fixed;left:0;right:0;bottom:calc(var(--alto-barra) + env(safe-area-inset-bottom));z-index:29;
+  display:flex;gap:8px;padding:8px 12px;max-width:560px;margin:0 auto;
+  background:rgba(241,242,240,.96);border-top:1px solid var(--linea);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
 }
-.barra button{
-  flex:1;min-width:0;padding:10px 4px;border-radius:12px;font-weight:700;font-size:.76rem;line-height:1.15;text-align:center;
-  display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--carbon);
+.acciones-semana button{
+  flex:1;min-width:0;min-height:48px;padding:8px;border-radius:12px;font-weight:700;font-size:.86rem;
+  display:flex;align-items:center;justify-content:center;gap:8px;
 }
-.barra button svg{width:20px;height:20px}
-.barra .principal{background:var(--verde);color:#fff;box-shadow:0 3px 10px rgba(47,158,91,.35)}
-.barra .principal svg{stroke:#fff}
+.acciones-semana button svg{width:20px;height:20px;flex:none}
+.acciones-semana .principal{background:var(--verde);color:#fff;box-shadow:0 3px 10px rgba(47,158,91,.35)}
+.acciones-semana button:disabled{opacity:.6}
 
 /* ---------- Diálogos ---------- */
 /* Centrados en horizontal y vertical, con 16 px de margen a los lados. El reset «*{margin:0}» de
@@ -234,6 +237,7 @@ table.inf-t th small{display:block;font-weight:400;color:#555}
 table.inf-t td.obra{text-align:left;font-weight:600}
 table.inf-t tr.extras td{color:#8E2487;font-weight:600;background:#FBF3FA}
 table.inf-t tr.tot td{font-weight:800;background:#EAF6EE}
+table.inf-t tr.horario td{font-size:8pt;color:#333}
 .inf-sec{border:1.5px solid #1a1a1a;margin-bottom:16px}
 .inf-sec h4{font-family:system-ui,sans-serif;text-align:center;font-size:9.5pt;letter-spacing:.06em;padding:5px;border-bottom:1px solid #1a1a1a;background:#EDEFEA}
 .inf-sec div{padding:8px 12px;font-family:system-ui,sans-serif;font-size:9pt;line-height:1.7;min-height:52px}
@@ -581,3 +585,233 @@ dialog.hoja-terminos{overflow:hidden;padding-bottom:0}
 .terminos-cuerpo{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:14px 18px}
 .hoja-terminos .dlg-botones{flex:none;margin:0;padding:12px 18px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--linea)}
 #terminosTexto > h2:first-child{display:none}   /* el título ya está en la cabecera de la hoja */
+
+/* =====================================================================
+   v2.2 — Fichaje y pausas
+   Diseños aprobados: docs/disenos/fichaje/ (Main, Pausa, Contador, Cuadro y Ajustes).
+   Las tipografías del diseño (Barlow, Barlow Condensed y Share Tech Mono) van en el repositorio
+   (assets/fuentes, licencia OFL) y las guarda el service worker: funcionan sin cobertura.
+   Solo se usan en las pantallas nuevas (.fx) y en la barra de pestañas; el resto de la app sigue
+   con la tipografía del sistema, como estaba aprobada.
+   ===================================================================== */
+@font-face{font-family:'Barlow';font-style:normal;font-weight:400;font-display:swap;src:url(../assets/fuentes/barlow-400.woff2) format('woff2')}
+@font-face{font-family:'Barlow';font-style:normal;font-weight:500;font-display:swap;src:url(../assets/fuentes/barlow-500.woff2) format('woff2')}
+@font-face{font-family:'Barlow';font-style:normal;font-weight:600;font-display:swap;src:url(../assets/fuentes/barlow-600.woff2) format('woff2')}
+@font-face{font-family:'Barlow';font-style:normal;font-weight:700;font-display:swap;src:url(../assets/fuentes/barlow-700.woff2) format('woff2')}
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:500;font-display:swap;src:url(../assets/fuentes/barlow-condensed-500.woff2) format('woff2')}
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:600;font-display:swap;src:url(../assets/fuentes/barlow-condensed-600.woff2) format('woff2')}
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:700;font-display:swap;src:url(../assets/fuentes/barlow-condensed-700.woff2) format('woff2')}
+@font-face{font-family:'Share Tech Mono';font-style:normal;font-weight:400;font-display:swap;src:url(../assets/fuentes/share-tech-mono-400.woff2) format('woff2')}
+
+.fx{
+  --fx-ink:#26222B; --fx-gris:#6A6570; --fx-verde:#2F9E5B; --fx-verde-osc:#1E6B3E; --fx-verde-claro:#E3F3E9;
+  --fx-ambar:#D99A1E; --fx-ambar-claro:#FFF4E0; --fx-ambar-borde:#E8C27A; --fx-ambar-osc:#8A5A00; --fx-ambar-texto:#5C3D00;
+  --fx-caja:#2B2730; --fx-ranura:#1B181F; --fx-linea:#DDDFD9; --fx-contorno:#8F938B;
+  --fx-mono:'Share Tech Mono',ui-monospace,monospace; --fx-cond:'Barlow Condensed','Barlow',system-ui,sans-serif;
+  font-family:'Barlow',system-ui,sans-serif;color:var(--fx-ink);
+}
+.fx button{font-family:inherit}
+.fx-main{padding:18px 16px 16px;max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.panel .fx-main{max-width:560px;padding:16px 16px 16px}
+.fx-titulo{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.fx-titulo > div:first-child{min-width:0}
+.fx-fecha{font-family:var(--fx-cond);font-size:13px;font-weight:600;letter-spacing:.12em;color:var(--fx-gris)}
+.fx-h1{font-size:22px;font-weight:700;line-height:1.2}
+.fx-sub{font-size:13px;color:var(--fx-gris);margin-top:2px}
+.fx-nota{font-size:12px;color:var(--fx-gris);line-height:1.4}
+.fx-vacio{grid-column:1/-1;color:#B9B4BE;font-size:14px;text-align:center;padding:16px 0}
+
+/* Píldora de estado: EN SERVICIO / EN LA COMIDA / SIN FICHAR */
+.fx-pildora{display:flex;align-items:center;gap:8px;border-radius:999px;padding:6px 12px;flex:none;border:1px solid}
+.fx-pildora-punto{width:9px;height:9px;border-radius:50%;flex:none}
+.fx-pildora > span:last-child{font-size:13px;font-weight:700;white-space:nowrap}
+.fx-pildora.verde{background:var(--fx-verde-claro);border-color:#9FD3B2;color:var(--fx-verde-osc)}
+.fx-pildora.verde .fx-pildora-punto{background:var(--fx-verde);box-shadow:0 0 0 3px rgba(47,158,91,.25)}
+.fx-pildora.ambar{background:var(--fx-ambar-claro);border-color:var(--fx-ambar-borde);color:var(--fx-ambar-osc)}
+.fx-pildora.ambar .fx-pildora-punto{background:var(--fx-ambar);box-shadow:0 0 0 3px rgba(217,154,30,.25)}
+.fx-pildora.gris{background:#EDEEEB;border-color:#C9CCC5;color:#5A5560}
+.fx-pildora.gris .fx-pildora-punto{background:var(--fx-contorno)}
+.cab.en-pausa{border-bottom-color:#D99A1E}
+
+.fx-tarjeta{background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(38,34,43,.10),0 4px 14px rgba(38,34,43,.06)}
+.fx-tarjeta h2{font-size:15px;font-weight:700}
+
+/* El interruptor (magnetotérmico) */
+.fx-estado{padding:20px 18px;display:flex;gap:18px;align-items:center}
+.fx-caja{width:118px;height:196px;border-radius:14px;background:var(--fx-caja);padding:10px;flex:none;
+  display:flex;flex-direction:column;align-items:center;gap:8px;box-shadow:inset 0 -4px 0 rgba(0,0,0,.25)}
+.fx-caja-ref{font-family:var(--fx-mono);font-size:11px;color:#B9B4BE;letter-spacing:.08em;white-space:nowrap}
+.fx-ranura{width:58px;height:118px;border-radius:10px;background:var(--fx-ranura);position:relative;flex:none;
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:6px 0}
+.fx-ranura .fx-i,.fx-ranura .fx-o{font-family:var(--fx-mono);font-size:12px;color:var(--fx-gris)}
+.fx-palanca{position:absolute;left:7px;right:7px;height:46px;border-radius:8px;transition:top .25s ease,background .25s ease}
+.fx-caja.on .fx-palanca{top:22px;background:var(--fx-verde);box-shadow:0 3px 0 #1E6B3E,0 0 18px rgba(47,158,91,.45)}
+.fx-caja.on .fx-i{color:#6FD39A}
+.fx-caja.pausa .fx-palanca{top:36px;background:var(--fx-ambar);box-shadow:0 3px 0 #8A5A00,0 0 18px rgba(217,154,30,.4)}
+.fx-caja.off .fx-palanca{top:50px;background:#6A6570;box-shadow:0 3px 0 #45404B}
+.fx-caja.off .fx-o{color:#B9B4BE}
+.fx-led{display:flex;gap:6px;align-items:center}
+.fx-led-punto{width:8px;height:8px;border-radius:50%;background:#6A6570}
+.fx-caja.on .fx-led-punto{background:#6FD39A}
+.fx-caja.pausa .fx-led-punto{background:#F2B94B}
+.fx-led span:last-child{font-family:var(--fx-mono);font-size:11px;color:#B9B4BE}
+.fx-datos{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}
+.fx-etq{font-size:13px;color:var(--fx-gris)}
+.fx-sep{margin-top:6px}
+.fx-sep2{margin-top:4px}
+.fx-grande{font-family:var(--fx-mono);font-size:40px;line-height:1;letter-spacing:.02em;white-space:nowrap}
+.fx-grande.ambar{color:var(--fx-ambar-osc)}
+.fx-grande.gris{color:#B9B4BE}
+.fx-seg{font-size:22px;color:var(--fx-gris)}
+.fx-valor{font-size:18px;font-weight:700}
+.fx-obra{font-size:16px;font-weight:600;overflow-wrap:anywhere}
+.fx-barra{height:8px;border-radius:4px;background:#F1E3C4;overflow:hidden;margin-top:2px}
+.fx-barra > div{height:100%;background:var(--fx-ambar);width:0}
+@media (max-width:374px){
+  .fx-estado{gap:14px;padding:18px 14px}
+  .fx-grande{font-size:34px}
+  .fx-seg{font-size:19px}
+}
+
+/* Botones grandes */
+.fx-acciones{display:flex;flex-direction:column;gap:14px}
+.fx-boton{min-height:58px;border-radius:14px;font-size:17px;font-weight:700;border:none;padding:8px 14px;
+  display:flex;align-items:center;justify-content:center;gap:10px;text-align:center;line-height:1.2}
+.fx-boton svg{width:20px;height:20px;flex:none}
+.fx-boton.oscuro{background:var(--fx-ink);color:#fff}
+.fx-boton.verde{background:var(--fx-verde);color:#fff}
+.fx-boton.verde:disabled{opacity:.45;cursor:default}
+.fx-boton.contorno{min-height:44px;border-radius:12px;background:#fff;border:1.5px solid var(--fx-contorno);font-size:15px;font-weight:600;color:var(--fx-ink)}
+.fx-pausas-botones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.fx-pausa-b{min-height:56px;border-radius:12px;background:var(--fx-ambar-claro);border:1.5px solid var(--fx-ambar);color:var(--fx-ambar-texto);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:6px}
+.fx-pausa-b b{font-size:15px;font-weight:700}
+.fx-pausa-b span{font-size:12px;font-weight:500}
+.fx-pausa-b:disabled{background:#F1F2F0;border-color:#C9CCC5;color:#6A6570;cursor:default}
+.fx-enlace{align-self:center;color:#237945;font-size:14px;font-weight:600;text-decoration:underline;padding:6px 10px;min-height:44px}
+.fx-actualizar{flex:none;min-height:40px;padding:8px 14px;border-radius:12px;background:#fff;border:1.5px solid var(--fx-contorno);font-size:14px;font-weight:600;color:var(--fx-ink)}
+
+/* Obra al fichar la entrada */
+.fx-campo{margin-bottom:0}
+.fx-campo label{font-family:var(--fx-cond);font-size:13px;letter-spacing:.08em;color:var(--fx-gris)}
+.fx-campo input{background:#fff;font-size:16px;border-color:var(--fx-contorno);min-height:48px;font-family:inherit}
+.fx-chips{display:flex;flex-wrap:wrap;gap:8px}
+.fx-chip{min-height:40px;padding:6px 14px;border-radius:999px;background:#fff;border:1.5px solid var(--fx-linea);
+  font-size:14px;font-weight:600;color:var(--fx-ink);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fx-chip[aria-pressed="true"]{background:var(--fx-verde-claro);border-color:#9FD3B2;color:var(--fx-verde-osc)}
+#dlgCambioObra .fx-chips{margin:-2px 0 6px}
+#dlgCambioObra .fx-chip{color:var(--ink)}
+.ayuda-dlg{font-size:.76rem;color:var(--gris);line-height:1.4;margin:-2px 0 4px}
+
+/* Pausas de hoy */
+.fx-pausas-hoy{padding:14px 16px;border-radius:16px;box-shadow:none;display:flex;flex-direction:column;gap:10px}
+.fx-pausa-fila{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px}
+.fx-pausa-nombre{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+.fx-punto{width:10px;height:10px;border-radius:50%;flex:none;background:var(--fx-verde)}
+.fx-pausa-fila.comida .fx-punto{background:var(--fx-ambar)}
+.fx-mono{font-family:var(--fx-mono);color:var(--fx-gris)}
+.fx-cuenta{font-size:12px;font-weight:700;color:var(--fx-verde-osc);flex:none}
+.fx-pausa-fila.comida .fx-cuenta{color:var(--fx-ambar-osc)}
+
+/* Jornada terminada: lo que ha pasado al parte */
+.fx-resumen{padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.fx-fila{display:flex;justify-content:space-between;gap:10px;font-size:14px}
+.fx-fila span{min-width:0;overflow-wrap:anywhere}
+.fx-fila b{flex:none}
+.fx-fila.extra b{color:#C438B8}
+
+/* Avisos: jornadas sin cerrar y fichajes pendientes de enviar */
+.fx-aviso{margin-bottom:0;font-size:13px;line-height:1.35}
+.fx-aviso button{min-height:40px;padding:0 6px}
+.fx-sinc{display:flex;flex-direction:column;gap:8px}
+.fx-sinc-fila{display:flex;align-items:center;gap:10px;background:var(--fx-ambar-claro);border-radius:10px;padding:8px 10px;font-size:13px;color:var(--fx-ambar-texto);line-height:1.35}
+.fx-sinc-fila svg{width:18px;height:18px;flex:none;color:var(--fx-ambar-osc)}
+.fx-sinc-fila span{flex:1;min-width:0}
+.fx-sinc-fila button{flex:none;font-weight:700;color:var(--fx-ambar-osc);min-height:40px;padding:0 4px}
+.fx-sinc-fila.error{background:#FBEAE8;color:#7A2219}
+.fx-sinc-fila.error svg{color:var(--rojo)}
+
+/* Consumo de la semana (Contador.dc.html, solo esta tarjeta) */
+.fx-consumo{padding:16px;display:flex;flex-direction:column;gap:12px}
+.fx-consumo-cab h2{font-size:16px}
+.fx-grafica{height:152px;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;align-items:end;border-bottom:1.5px solid var(--fx-linea);padding-bottom:2px}
+.fx-col{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.fx-col-num{font-family:var(--fx-mono);font-size:12px;white-space:nowrap}
+.fx-col-num.gris{color:#8A8590}
+.fx-col-barra{width:100%;border-radius:6px 6px 2px 2px}
+.fx-col-comida{width:100%;border-radius:3px;background:var(--fx-ambar)}
+.fx-col-vacia{width:100%;height:6px;border-radius:3px;background:var(--fx-linea)}
+.fx-dias{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;text-align:center;font-size:12px;font-weight:600;color:var(--fx-gris)}
+.fx-dias .hoy{color:var(--fx-ink)}
+.fx-leyenda{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--fx-gris)}
+.fx-leyenda span{display:flex;align-items:center;gap:6px}
+.fx-leyenda i{width:10px;height:10px;border-radius:2px;flex:none}
+.fx-pausas-semana{display:flex;gap:8px;background:var(--fx-ambar-claro);border-radius:10px;padding:8px 10px;font-size:13px;color:var(--fx-ambar-texto);align-items:center;line-height:1.35}
+.fx-pausas-semana svg{width:18px;height:18px;flex:none;color:var(--fx-ambar-osc)}
+
+/* Semana: la línea del fichaje en la tarjeta del día */
+.dia-fichaje{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin:8px 0 2px;padding:8px 10px;border-radius:10px;background:#F4F5F2;font-size:.78rem;color:var(--carbon)}
+.dia-fichaje-texto{flex:1;min-width:150px}
+.dia-fichaje-b{min-height:36px;padding:4px 12px;border-radius:9px;background:#fff;border:1.5px solid var(--linea);font-weight:700;font-size:.78rem;color:var(--verde-osc)}
+.marca-corregido{display:inline-block;padding:2px 8px;border-radius:999px;background:#FFF4E0;border:1px solid #E8C27A;color:#8A5A00;font-size:.7rem;font-weight:800;letter-spacing:.02em}
+.horario{font-variant-numeric:tabular-nums;color:var(--carbon)}
+
+/* Cuadro general */
+.fx-contadores{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.fx-contador{background:#fff;border-radius:12px;padding:10px;border-top:4px solid var(--fx-verde);min-width:0}
+.fx-contador b{display:block;font-family:var(--fx-mono);font-size:24px;line-height:1;font-weight:400}
+.fx-contador span{font-size:12px;font-weight:600;color:var(--fx-verde-osc)}
+.fx-contador.pausa{border-top-color:var(--fx-ambar)}
+.fx-contador.pausa span{color:var(--fx-ambar-osc)}
+.fx-contador.fuera{border-top-color:var(--fx-contorno)}
+.fx-contador.fuera span{color:#5A5560}
+.fx-cuadro{background:var(--fx-caja);border-radius:18px;padding:12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.fx-tec{background:#fff;border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;min-width:0}
+.fx-tec-caja{width:26px;height:52px;border-radius:6px;background:var(--fx-ranura);padding:3px;flex:none;display:flex;flex-direction:column}
+.fx-tec-palanca{height:22px;width:100%;border-radius:4px;flex:none}
+.fx-tec.on .fx-tec-palanca{background:var(--fx-verde)}
+.fx-tec.pausa .fx-tec-caja{justify-content:center}
+.fx-tec.pausa .fx-tec-palanca{background:var(--fx-ambar)}
+.fx-tec.off .fx-tec-caja{justify-content:flex-end}
+.fx-tec.off .fx-tec-palanca{background:#6A6570}
+.fx-tec-datos{min-width:0;display:flex;flex-direction:column}
+.fx-tec-datos b{font-size:14px;font-weight:700;overflow-wrap:anywhere}
+.fx-tec-estado{font-size:12px;font-weight:700;color:var(--fx-verde-osc)}
+.fx-tec.pausa .fx-tec-estado{color:var(--fx-ambar-osc)}
+.fx-tec.off .fx-tec-estado{color:#5A5560}
+.fx-tec-detalle{font-size:12px;color:var(--fx-gris);overflow-wrap:anywhere}
+.fx-banda{background:var(--fx-ambar-claro);border:1px solid var(--fx-ambar-borde);border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:center;font-size:13px;line-height:1.35;color:var(--fx-ambar-texto)}
+.fx-banda svg{width:20px;height:20px;flex:none;color:var(--fx-ambar-osc)}
+
+/* Ajustes › Pausas */
+.fx-ajuste{padding:16px;display:flex;flex-direction:column;gap:12px}
+.fx-tarjeta h2.fx-ajuste-nombre{font-size:17px}
+.fx-regla{display:inline-flex;align-items:center;gap:5px;margin-top:4px;font-size:12px;font-weight:700;border-radius:999px;padding:3px 9px}
+.fx-regla svg{width:12px;height:12px;flex:none}
+.fx-regla.cuenta{color:var(--fx-verde-osc);background:var(--fx-verde-claro)}
+.fx-regla.no-cuenta{color:var(--fx-ambar-osc);background:var(--fx-ambar-claro)}
+.fx-paso{display:flex;align-items:center;gap:10px}
+.fx-paso-b{width:52px;height:52px;border-radius:12px;background:#F1F2F0;border:1.5px solid var(--fx-contorno);font-size:24px;font-weight:700;color:var(--fx-ink);flex:none}
+.fx-paso-b:disabled{opacity:.35;cursor:default}
+.fx-paso-valor{flex:1;height:52px;border-radius:12px;background:var(--fx-ink);color:#fff;display:flex;align-items:center;justify-content:center;gap:6px}
+.fx-paso-valor b{font-family:var(--fx-mono);font-size:30px;font-weight:400}
+.fx-paso-valor span{font-size:15px}
+.fx-ayuda{font-size:12px;color:var(--fx-gris)}
+#btnGuardarAjustes{min-height:54px}
+.fx-info{display:flex;gap:10px;font-size:12px;color:var(--fx-gris);line-height:1.4}
+.fx-info svg{width:18px;height:18px;flex:none;margin-top:1px}
+
+/* Barra de pestañas (técnico y encargado), con el pie de página debajo, como en los diseños */
+.barra-fx{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid #DDDFD9;
+  padding-bottom:env(safe-area-inset-bottom);font-family:'Barlow',system-ui,sans-serif}
+.barra-fx-botones{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:8px 10px 6px;max-width:560px;margin:0 auto}
+.barra-fx button{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:48px;justify-content:center;
+  color:#6A6570;font-size:12px;font-weight:600;border-radius:10px;font-family:inherit}
+.barra-fx button svg{width:22px;height:22px}
+.barra-fx button[aria-current="page"]{color:#237945;font-weight:700}
+#barraEncargado button[aria-current="page"]{color:#26222B}
+.barra-fx-firma{text-align:center;font-size:10px;color:#8A8590;padding:0 0 8px}
+@media print{ .barra-fx,.acciones-semana{display:none !important} }
+/* v2.2: los avisos flotantes, por encima de la barra de pestañas (y en Semana, de sus botones) */
+.con-barra .aviso{bottom:calc(var(--alto-barra) + 14px + env(safe-area-inset-bottom))}
+.con-barra:has(#tabSemana:not([hidden])) .aviso{bottom:calc(var(--alto-barra) + 78px + env(safe-area-inset-bottom))}

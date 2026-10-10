@@ -4,7 +4,11 @@
    se usan para decidir qué pantalla mostrar. Con conexión se refrescan en segundo plano. */
 
 const VISTAS = ['vAcceso','vConsentimiento','vPendiente','vDesactivada','vPanel','vApp','vHistorico'];
-function mostrarVista(id){ for(const v of VISTAS) $(v).hidden = v!==id; }
+function mostrarVista(id){
+  for(const v of VISTAS) $(v).hidden = v!==id;
+  $('barraTecnico').hidden = id!=='vApp' && id!=='vHistorico';     // v2.2: barra inferior del técnico
+  document.body.classList.toggle('con-barra', id==='vApp' || id==='vHistorico' || id==='vPanel');
+}
 
 /* Datos de empresa de config.js en la cabecera. */
 function pintarEmpresa(){
@@ -109,7 +113,9 @@ async function cerrarSesion(){
   localStorage.removeItem(K.sesion);
   cerrarAlmacen();
   semanaVista=null;
+  pestanaTecnico='fichar'; pestanaPanel='cuadro';
   programarReintento();
+  programarFichajes();
   mostrarAcceso();
 }
 /* El servidor ya no acepta la sesión: hay que volver a entrar. Los datos del usuario se quedan. */
@@ -132,11 +138,23 @@ async function refrescarDesdeServidor(){
     if(perfil.role==='tecnico' && perfil.approved && perfil.active){
       if(fusionarServidor(await leerMisPartes(claveMasAntigua())) && !$('vApp').hidden) pintarSemana();
       await procesarCola();
+      await refrescarFichajes();
     }
   }catch(e){
     if(e.tipo==='sesion') marcarSesionCaducada();
   }finally{ refrescando=false; }
 }
+
+/* v2.2: duraciones de las pausas al día, fichajes hechos en otro móvil y los pendientes de mandar.
+   Si la base de datos aún no tiene la migración v2.2, se sigue con lo que hay en el móvil. */
+async function refrescarFichajes(){
+  try{ guardarAjustesPausas(await leerAjustesPausasApi()); }
+  catch(e){ if(e.tipo==='sesion') throw e; }
+  try{ if(fusionarFichajesServidor(await leerFichajesApi({ usuario:uid, desde:claveMasAntigua() })) && !$('vApp').hidden) pintarPestanaTecnico(); }
+  catch(e){ if(e.tipo==='sesion') throw e; }
+  await sincronizarFichajes();
+}
+function pintarPestanaTecnico(){ if(!$('tabFichar').hidden) pintarFichar(); else pintarSemana(); }
 
 /* ================= Arranque ================= */
 function arrancar(){
@@ -147,14 +165,16 @@ function arrancar(){
   semanaVista=claveActual();
   enrutar();
   programarReintento();
+  programarFichajes();
   refrescarDesdeServidor();
 }
 
 /* Refrescar al volver a la app (cambio de día/semana, reintentar envíos) */
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden || !uid) return;
-  if(!$('vApp').hidden) pintarSemana();
+  if(!$('vApp').hidden) pintarPestanaTecnico();
   refrescarDesdeServidor();
 });
+window.addEventListener('online', () => sincronizarFichajes());
 
 arrancar();
